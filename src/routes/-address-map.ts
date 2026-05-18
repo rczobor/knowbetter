@@ -3,10 +3,53 @@ export type AddressPoint = {
   coordinates: Array<number>
 }
 
-export type AddressWithPoints = {
-  parkingPoint?: AddressPoint
-  entrancePoint?: AddressPoint
-} | null | undefined
+export type EventPointKind = 'eventParking' | 'eventEntrance'
+
+export type EventPointFeatureProperties = {
+  eventId: string
+  kind: EventPointKind
+  label: string
+  date?: string
+}
+
+export type EventPointFeature = {
+  type: 'Feature'
+  geometry: {
+    type: 'Point'
+    coordinates: [number, number]
+  }
+  properties: EventPointFeatureProperties
+}
+
+export type EventPointFeatureCollection = {
+  type: 'FeatureCollection'
+  features: Array<EventPointFeature>
+}
+
+export type EventWithPoints =
+  | {
+      _id?: string
+      date?: string
+      parkingPoint?: AddressPoint
+      entrancePoint?: AddressPoint
+    }
+  | null
+  | undefined
+
+export type AddressWithPoints =
+  | {
+      parkingPoint?: AddressPoint
+      entrancePoint?: AddressPoint
+    }
+  | null
+  | undefined
+
+export type MapViewportPoint = {
+  id?: string
+  label?: string
+  longitude: number
+  latitude: number
+}
 
 export type AddressMarker = {
   id: 'parking' | 'entrance' | 'userLocation'
@@ -15,10 +58,13 @@ export type AddressMarker = {
   latitude: number
 }
 
-export type UserLocationPoint = {
-  longitude: number
-  latitude: number
-} | null | undefined
+export type UserLocationPoint =
+  | {
+      longitude: number
+      latitude: number
+    }
+  | null
+  | undefined
 
 export type MarkerViewportTarget =
   | {
@@ -35,11 +81,9 @@ export type MarkerViewportTarget =
 
 const MARKER_ZOOM = 17
 
-function pointToMarker(
-  id: AddressMarker['id'],
-  label: string,
+function getValidPointCoordinates(
   point: AddressPoint | undefined,
-): AddressMarker | null {
+): [number, number] | null {
   const longitude = point?.coordinates[0]
   const latitude = point?.coordinates[1]
 
@@ -52,6 +96,22 @@ function pointToMarker(
     return null
   }
 
+  return [longitude, latitude]
+}
+
+function pointToMarker(
+  id: AddressMarker['id'],
+  label: string,
+  point: AddressPoint | undefined,
+): AddressMarker | null {
+  const coordinates = getValidPointCoordinates(point)
+
+  if (!coordinates) {
+    return null
+  }
+
+  const [longitude, latitude] = coordinates
+
   return {
     id,
     label,
@@ -60,7 +120,9 @@ function pointToMarker(
   }
 }
 
-export function getAddressMarkers(address: AddressWithPoints): Array<AddressMarker> {
+export function getAddressMarkers(
+  address: AddressWithPoints,
+): Array<AddressMarker> {
   if (!address) {
     return []
   }
@@ -90,8 +152,100 @@ export function getUserLocationMarker(
   }
 }
 
+function eventPointLabel(kind: EventPointKind) {
+  if (kind === 'eventParking') {
+    return 'Historical parking point'
+  }
+
+  return 'Historical entrance point'
+}
+
+function eventPointId(event: EventWithPoints, eventIndex: number) {
+  if (event?._id) {
+    return event._id
+  }
+
+  return `event-${eventIndex}`
+}
+
+function eventPointToFeature(
+  event: EventWithPoints,
+  eventIndex: number,
+  kind: EventPointKind,
+  point: AddressPoint | undefined,
+): EventPointFeature | null {
+  const coordinates = getValidPointCoordinates(point)
+
+  if (!event || !coordinates) {
+    return null
+  }
+
+  const properties: EventPointFeatureProperties = {
+    eventId: eventPointId(event, eventIndex),
+    kind,
+    label: eventPointLabel(kind),
+  }
+
+  if (typeof event.date === 'string') {
+    properties.date = event.date
+  }
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Point',
+      coordinates,
+    },
+    properties,
+  }
+}
+
+export function getEventPointFeatureCollection(
+  events: Array<EventWithPoints> | null | undefined,
+): EventPointFeatureCollection {
+  if (!events) {
+    return {
+      type: 'FeatureCollection',
+      features: [],
+    }
+  }
+
+  return {
+    type: 'FeatureCollection',
+    features: events.flatMap((event, eventIndex) =>
+      [
+        eventPointToFeature(
+          event,
+          eventIndex,
+          'eventParking',
+          event?.parkingPoint,
+        ),
+        eventPointToFeature(
+          event,
+          eventIndex,
+          'eventEntrance',
+          event?.entrancePoint,
+        ),
+      ].filter((feature): feature is EventPointFeature => feature !== null),
+    ),
+  }
+}
+
+export function getEventPointMarkers(
+  events: Array<EventWithPoints> | null | undefined,
+): Array<MapViewportPoint> {
+  return getEventPointFeatureCollection(events).features.map((feature) => {
+    const [longitude, latitude] = feature.geometry.coordinates
+
+    return {
+      longitude,
+      latitude,
+    }
+  })
+}
+
 export function getMarkerViewportTarget(
-  markers: Array<AddressMarker>,
+  markers: Array<MapViewportPoint>,
 ): MarkerViewportTarget {
   if (markers.length === 0) {
     return null

@@ -2,17 +2,19 @@ import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
 import { DoorOpen, LocateFixed, SquareParking } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import Map, { Marker } from 'react-map-gl/mapbox'
-import type { MapRef } from 'react-map-gl/mapbox'
+import Map, { Layer, Marker, Source } from 'react-map-gl/mapbox'
+import type { LayerProps, MapRef } from 'react-map-gl/mapbox'
 import { toast } from 'sonner'
 
 import { api } from '../../convex/_generated/api'
 import {
   getAddressMarkers,
+  getEventPointFeatureCollection,
+  getEventPointMarkers,
   getMarkerViewportTarget,
   getUserLocationMarker,
 } from './-address-map'
-import type { AddressMarker } from './-address-map'
+import type { AddressMarker, EventPointFeatureCollection } from './-address-map'
 import { useUserLocation } from './-user-location'
 
 import 'mapbox-gl/dist/mapbox-gl.css'
@@ -35,9 +37,67 @@ const MARKER_CLASS_NAMES: Record<AddressMarker['id'], string> = {
   parking:
     'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-white shadow-lg shadow-black/25',
   entrance:
-    'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-white shadow-lg shadow-black/25',
+    'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-orange-500 text-white shadow-lg shadow-black/25',
   userLocation:
     'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-zinc-950 text-white shadow-lg shadow-black/25',
+}
+
+const HISTORICAL_EVENT_CLUSTERS_LAYER: LayerProps = {
+  id: 'historical-event-clusters',
+  type: 'circle',
+  filter: ['has', 'point_count'],
+  paint: {
+    'circle-color': '#f97316',
+    'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 25, 24],
+    'circle-stroke-color': '#ffffff',
+    'circle-stroke-width': 2,
+  },
+}
+
+const HISTORICAL_EVENT_CLUSTER_COUNT_LAYER: LayerProps = {
+  id: 'historical-event-cluster-count',
+  type: 'symbol',
+  filter: ['has', 'point_count'],
+  layout: {
+    'text-field': ['get', 'point_count_abbreviated'],
+    'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+    'text-size': 12,
+  },
+  paint: {
+    'text-color': '#ffffff',
+  },
+}
+
+const HISTORICAL_EVENT_PARKING_POINTS_LAYER: LayerProps = {
+  id: 'historical-event-parking-points',
+  type: 'circle',
+  filter: [
+    'all',
+    ['!', ['has', 'point_count']],
+    ['==', ['get', 'kind'], 'eventParking'],
+  ],
+  paint: {
+    'circle-color': '#2563eb',
+    'circle-radius': 6,
+    'circle-stroke-color': '#ffffff',
+    'circle-stroke-width': 2,
+  },
+}
+
+const HISTORICAL_EVENT_ENTRANCE_POINTS_LAYER: LayerProps = {
+  id: 'historical-event-entrance-points',
+  type: 'circle',
+  filter: [
+    'all',
+    ['!', ['has', 'point_count']],
+    ['==', ['get', 'kind'], 'eventEntrance'],
+  ],
+  paint: {
+    'circle-color': '#f97316',
+    'circle-radius': 6,
+    'circle-stroke-color': '#ffffff',
+    'circle-stroke-width': 2,
+  },
 }
 
 function AddressMap() {
@@ -45,8 +105,10 @@ function AddressMap() {
   const mapRef = useRef<MapRef | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const address = useQuery(api.address.getAddressByAddressId, { addressId })
+  const events = useQuery(api.address.getEventsByAddressId, { addressId })
   const userLocation = useUserLocation()
   const addressMarkers = getAddressMarkers(address)
+  const eventPointFeatureCollection = getEventPointFeatureCollection(events)
   const userLocationMarker = getUserLocationMarker(userLocation)
   const markers = userLocationMarker
     ? [...addressMarkers, userLocationMarker]
@@ -66,10 +128,15 @@ function AddressMap() {
   useEffect(() => {
     const map = mapRef.current
     const currentAddressMarkers = getAddressMarkers(address)
+    const currentEventPointMarkers = getEventPointMarkers(events)
     const currentUserLocationMarker = getUserLocationMarker(userLocation)
     const currentMarkers = currentUserLocationMarker
-      ? [...currentAddressMarkers, currentUserLocationMarker]
-      : currentAddressMarkers
+      ? [
+          ...currentAddressMarkers,
+          ...currentEventPointMarkers,
+          currentUserLocationMarker,
+        ]
+      : [...currentAddressMarkers, ...currentEventPointMarkers]
     const viewportTarget = getMarkerViewportTarget(currentMarkers)
 
     if (!mapLoaded || !map || !viewportTarget) {
@@ -90,7 +157,7 @@ function AddressMap() {
       zoom: viewportTarget.zoom,
       duration: 600,
     })
-  }, [address, mapLoaded, userLocation])
+  }, [address, events, mapLoaded, userLocation])
 
   return (
     <div className="h-dvh w-screen overflow-hidden">
@@ -102,11 +169,36 @@ function AddressMap() {
         mapStyle={MAP_STYLE}
         onLoad={() => setMapLoaded(true)}
       >
+        <HistoricalEventLayers
+          eventPointFeatureCollection={eventPointFeatureCollection}
+        />
         {markers.map((marker) => (
           <AddressMapMarker key={marker.id} marker={marker} />
         ))}
       </Map>
     </div>
+  )
+}
+
+function HistoricalEventLayers({
+  eventPointFeatureCollection,
+}: {
+  eventPointFeatureCollection: EventPointFeatureCollection
+}) {
+  return (
+    <Source
+      id="historical-events"
+      type="geojson"
+      data={eventPointFeatureCollection}
+      cluster
+      clusterMaxZoom={16}
+      clusterRadius={40}
+    >
+      <Layer {...HISTORICAL_EVENT_CLUSTERS_LAYER} />
+      <Layer {...HISTORICAL_EVENT_CLUSTER_COUNT_LAYER} />
+      <Layer {...HISTORICAL_EVENT_PARKING_POINTS_LAYER} />
+      <Layer {...HISTORICAL_EVENT_ENTRANCE_POINTS_LAYER} />
+    </Source>
   )
 }
 

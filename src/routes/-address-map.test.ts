@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  getEventPointFeatureCollection,
+  getEventPointMarkers,
   getAddressMarkers,
   getMarkerViewportTarget,
   getUserLocationMarker,
@@ -146,6 +148,134 @@ describe('address map helpers', () => {
       longitude: 19.0764,
       latitude: 47.5556,
       zoom: 17,
+    })
+  })
+
+  it('builds GeoJSON features for event parking points', () => {
+    const featureCollection = getEventPointFeatureCollection([
+      {
+        _id: 'event-1',
+        date: '2026-05-18',
+        parkingPoint: {
+          type: 'Point',
+          coordinates: [19.0791, 47.5572],
+        },
+      },
+    ])
+
+    expect(featureCollection).toEqual({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [19.0791, 47.5572],
+          },
+          properties: {
+            eventId: 'event-1',
+            kind: 'eventParking',
+            label: 'Historical parking point',
+            date: '2026-05-18',
+          },
+        },
+      ],
+    })
+  })
+
+  it('builds GeoJSON features for optional event entrance points', () => {
+    const featureCollection = getEventPointFeatureCollection([
+      {
+        _id: 'event-2',
+        parkingPoint: {
+          type: 'Point',
+          coordinates: [19.0791, 47.5572],
+        },
+        entrancePoint: {
+          type: 'Point',
+          coordinates: [19.0803, 47.5584],
+        },
+      },
+    ])
+
+    expect(featureCollection.features).toEqual([
+      expect.objectContaining({
+        geometry: {
+          type: 'Point',
+          coordinates: [19.0791, 47.5572],
+        },
+        properties: expect.objectContaining({
+          kind: 'eventParking',
+        }),
+      }),
+      expect.objectContaining({
+        geometry: {
+          type: 'Point',
+          coordinates: [19.0803, 47.5584],
+        },
+        properties: expect.objectContaining({
+          kind: 'eventEntrance',
+          label: 'Historical entrance point',
+        }),
+      }),
+    ])
+  })
+
+  it('ignores malformed event coordinates', () => {
+    const featureCollection = getEventPointFeatureCollection([
+      {
+        _id: 'event-1',
+        parkingPoint: {
+          type: 'Point',
+          coordinates: [19.0791],
+        },
+        entrancePoint: {
+          type: 'Point',
+          coordinates: [19.0803, Number.POSITIVE_INFINITY],
+        },
+      },
+    ])
+
+    expect(featureCollection.features).toEqual([])
+  })
+
+  it('computes a viewport target for address, event, and user location points', () => {
+    const addressMarkers = getAddressMarkers({
+      parkingPoint: {
+        type: 'Point',
+        coordinates: [19.0764, 47.5556],
+      },
+      entrancePoint: {
+        type: 'Point',
+        coordinates: [19.0781, 47.5562],
+      },
+    })
+    const eventMarkers = getEventPointMarkers([
+      {
+        _id: 'event-1',
+        parkingPoint: {
+          type: 'Point',
+          coordinates: [19.0812, 47.5594],
+        },
+      },
+    ])
+    const userLocationMarker = getUserLocationMarker({
+      longitude: 19.0712,
+      latitude: 47.5534,
+    })
+
+    const viewportTarget = getMarkerViewportTarget([
+      ...addressMarkers,
+      ...eventMarkers,
+      ...(userLocationMarker ? [userLocationMarker] : []),
+    ])
+
+    expect(viewportTarget).toEqual({
+      type: 'fitBounds',
+      bounds: [
+        [19.0712, 47.5534],
+        [19.0812, 47.5594],
+      ],
     })
   })
 })
