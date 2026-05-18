@@ -84,9 +84,23 @@ describe('Address map missing address toast', () => {
 
     expect(source).toContain('bg-blue-600')
     expect(source).toContain('bg-orange-500')
-    expect(source).toContain("'circle-color': '#2563eb'")
-    expect(source).toContain("'circle-color': '#f97316'")
+    expect(source).toContain("const PARKING_COLOR = '#2563eb'")
+    expect(source).toContain("const ENTRANCE_COLOR = '#f97316'")
+    expect(source).toContain("'circle-color': PARKING_COLOR")
+    expect(source).toContain("'circle-color': ENTRANCE_COLOR")
     expect(source).not.toContain('bg-emerald-600')
     expect(source).not.toContain("'circle-color': '#a855f7'")
+  })
+
+  it('colors historical clusters from the dominant event point kind', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('clusterProperties')
+    expect(source).toContain('eventParkingCount')
+    expect(source).toContain('eventEntranceCount')
+    expect(source).toContain("['>=', ['get', 'eventParkingCount']")
   })
 })

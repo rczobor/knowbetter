@@ -32,6 +32,8 @@ const INITIAL_VIEW_STATE = {
   latitude: 47.55561160380166,
   zoom: 14,
 }
+const PARKING_COLOR = '#2563eb'
+const ENTRANCE_COLOR = '#f97316'
 
 const MARKER_CLASS_NAMES: Record<AddressMarker['id'], string> = {
   parking:
@@ -47,7 +49,12 @@ const HISTORICAL_EVENT_CLUSTERS_LAYER: LayerProps = {
   type: 'circle',
   filter: ['has', 'point_count'],
   paint: {
-    'circle-color': '#f97316',
+    'circle-color': [
+      'case',
+      ['>=', ['get', 'eventParkingCount'], ['get', 'eventEntranceCount']],
+      PARKING_COLOR,
+      ENTRANCE_COLOR,
+    ],
     'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 25, 24],
     'circle-stroke-color': '#ffffff',
     'circle-stroke-width': 2,
@@ -77,7 +84,7 @@ const HISTORICAL_EVENT_PARKING_POINTS_LAYER: LayerProps = {
     ['==', ['get', 'kind'], 'eventParking'],
   ],
   paint: {
-    'circle-color': '#2563eb',
+    'circle-color': PARKING_COLOR,
     'circle-radius': 6,
     'circle-stroke-color': '#ffffff',
     'circle-stroke-width': 2,
@@ -93,7 +100,7 @@ const HISTORICAL_EVENT_ENTRANCE_POINTS_LAYER: LayerProps = {
     ['==', ['get', 'kind'], 'eventEntrance'],
   ],
   paint: {
-    'circle-color': '#f97316',
+    'circle-color': ENTRANCE_COLOR,
     'circle-radius': 6,
     'circle-stroke-color': '#ffffff',
     'circle-stroke-width': 2,
@@ -193,6 +200,16 @@ function HistoricalEventLayers({
       cluster
       clusterMaxZoom={16}
       clusterRadius={40}
+      clusterProperties={{
+        eventParkingCount: [
+          '+',
+          ['case', ['==', ['get', 'kind'], 'eventParking'], 1, 0],
+        ],
+        eventEntranceCount: [
+          '+',
+          ['case', ['==', ['get', 'kind'], 'eventEntrance'], 1, 0],
+        ],
+      }}
     >
       <Layer {...HISTORICAL_EVENT_CLUSTERS_LAYER} />
       <Layer {...HISTORICAL_EVENT_CLUSTER_COUNT_LAYER} />
