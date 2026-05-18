@@ -66,6 +66,58 @@ describe('Address map missing address toast', () => {
     expect(source).toContain('ParkingFlowStep')
   })
 
+  it('does not block automatic camera movement on drawer measurement', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).not.toContain('drawerHeight === null')
+    expect(source).toContain('padding: getMapFitPadding(drawerHeight)')
+    expect(source).toContain('retainPadding: false')
+  })
+
+  it('does not require the map load event before automatic camera movement', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).not.toContain('!mapLoaded')
+  })
+
+  it('reruns automatic camera movement after the map ref attaches', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('const handleMapRef = useCallback')
+    expect(source).toContain('setMapAttached')
+    expect(source).toContain('ref={handleMapRef}')
+  })
+
+  it('uses a remounted bounds initial view state for the arrival fit', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('const mapFitKey')
+    expect(source).toContain('fitBoundsOptions')
+    expect(source).toContain('key={mapFitKey}')
+  })
+
+  it('measures the drawer after its portal content attaches', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('const [drawerContent, setDrawerContent]')
+    expect(source).toContain('ref={setDrawerContent}')
+  })
+
   it('keeps the parking arrival drawer open until the flow advances', () => {
     const source = readFileSync(
       new URL('./address.$addressId.tsx', import.meta.url),
@@ -86,7 +138,17 @@ describe('Address map missing address toast', () => {
     expect(source).toContain('parkingPoint: arrivedParkingPoint')
     expect(source).toContain('date: new Date().toISOString()')
     expect(source).not.toContain('walkingTraces:')
-    expect(source).not.toContain('entrancePoint:')
+  })
+
+  it('stores the created event id for the walking flow', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('const [currentEvent, setCurrentEvent]')
+    expect(source).toContain('const createdEvent = await addEventForAddressId')
+    expect(source).toContain('setCurrentEvent(createdEvent)')
   })
 
   it('updates only the address parking point when corrected', () => {
@@ -97,7 +159,7 @@ describe('Address map missing address toast', () => {
 
     expect(source).toContain('api.address.updateAddressByAddressId')
     expect(source).toContain('parkingPoint: correctedParkingPoint')
-    expect(source).not.toContain('updateEvent')
+    expect(source).toContain('handleSaveCorrectedParking')
   })
 
   it('shows historical event parking points only during center-pin adjustment', () => {
@@ -116,5 +178,31 @@ describe('Address map missing address toast', () => {
     expect(source).toContain('getParkingFlowMarkers')
     expect(source).not.toContain('HistoricalEventLayers')
     expect(source).not.toContain('historical-event-entrance-points')
+  })
+
+  it('tracks walking traces after parking confirmation', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain("'walkingToEntrance'")
+    expect(source).toContain('navigator.geolocation.watchPosition')
+    expect(source).toContain('navigator.geolocation.clearWatch')
+    expect(source).toContain('api.address.updateEventWalkingTraces')
+    expect(source).toContain('shouldAppendWalkingTracePoint')
+  })
+
+  it('finishes walking with one backend mutation and renders the completed event', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('api.address.finishEventAtEntrance')
+    expect(source).toContain("setParkingFlowStep('finishedWalking')")
+    expect(source).toContain('active-event-walking-line')
+    expect(source).toContain('active-event-parking-origin')
+    expect(source).toContain('active-event-entrance-destination')
   })
 })

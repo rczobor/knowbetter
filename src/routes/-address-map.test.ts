@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  shouldAppendWalkingTracePoint,
+  getActiveEventFeatureCollections,
   getAddressParkingMarker,
   getEventPointFeatureCollection,
   getEventParkingPointFeatureCollection,
   getEventPointMarkers,
+  getParkingArrivalViewportMarkers,
   getParkingFlowMarkers,
   getPointFromMapCenter,
   getPointFromViewportPoint,
@@ -232,6 +235,50 @@ describe('address map helpers', () => {
     })
   })
 
+  it('waits to fit the arrival viewport until geolocation resolves', () => {
+    expect(
+      getParkingArrivalViewportMarkers(
+        {
+          parkingPoint: {
+            type: 'Point',
+            coordinates: [19.0764, 47.5556],
+          },
+        },
+        null,
+        'loading',
+      ),
+    ).toEqual([])
+
+    expect(
+      getParkingArrivalViewportMarkers(
+        {
+          parkingPoint: {
+            type: 'Point',
+            coordinates: [19.0764, 47.5556],
+          },
+        },
+        {
+          longitude: 19.0712,
+          latitude: 47.5534,
+        },
+        'available',
+      ),
+    ).toEqual([
+      {
+        id: 'parking',
+        label: 'Parking point',
+        longitude: 19.0764,
+        latitude: 47.5556,
+      },
+      {
+        id: 'userLocation',
+        label: 'Your current location',
+        longitude: 19.0712,
+        latitude: 47.5534,
+      },
+    ])
+  })
+
   it('computes a fly-to viewport target for one marker', () => {
     const viewportTarget = getMarkerViewportTarget([
       {
@@ -422,5 +469,123 @@ describe('address map helpers', () => {
       bottom: 80,
       left: 80,
     })
+  })
+
+  it('builds active event origin, walking line, and destination GeoJSON', () => {
+    const featureCollections = getActiveEventFeatureCollections({
+      _id: 'event-1',
+      parkingPoint: {
+        type: 'Point',
+        coordinates: [19.0764, 47.5556],
+      },
+      walkingTraces: {
+        type: 'MultiPoint',
+        coordinates: [
+          [19.0764, 47.5556],
+          [19.0771, 47.5561],
+          [19.0781, 47.5562],
+        ],
+      },
+      entrancePoint: {
+        type: 'Point',
+        coordinates: [19.0781, 47.5562],
+      },
+    })
+
+    expect(featureCollections.points.features).toEqual([
+      expect.objectContaining({
+        geometry: {
+          type: 'Point',
+          coordinates: [19.0764, 47.5556],
+        },
+        properties: expect.objectContaining({
+          kind: 'activeParking',
+        }),
+      }),
+      expect.objectContaining({
+        geometry: {
+          type: 'Point',
+          coordinates: [19.0781, 47.5562],
+        },
+        properties: expect.objectContaining({
+          kind: 'activeEntrance',
+        }),
+      }),
+    ])
+    expect(featureCollections.line.features).toEqual([
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [19.0764, 47.5556],
+            [19.0771, 47.5561],
+            [19.0781, 47.5562],
+          ],
+        },
+        properties: {
+          eventId: 'event-1',
+          kind: 'activeWalkingTrace',
+          label: 'Walking trace',
+        },
+      },
+    ])
+  })
+
+  it('ignores malformed walking trace coordinates and waits for two valid points', () => {
+    const featureCollections = getActiveEventFeatureCollections({
+      _id: 'event-2',
+      walkingTraces: {
+        type: 'MultiPoint',
+        coordinates: [[19.0764], [Number.NaN, 47.5561], [19.0781, 47.5562]],
+      },
+    })
+
+    expect(featureCollections.line.features).toEqual([])
+  })
+
+  it('throttles walking trace appends by elapsed time or distance', () => {
+    expect(
+      shouldAppendWalkingTracePoint({
+        lastPoint: {
+          longitude: 19.0764,
+          latitude: 47.5556,
+        },
+        nextPoint: {
+          longitude: 19.07641,
+          latitude: 47.55561,
+        },
+        lastAppendTime: 1000,
+        nextAppendTime: 3000,
+      }),
+    ).toBe(false)
+    expect(
+      shouldAppendWalkingTracePoint({
+        lastPoint: {
+          longitude: 19.0764,
+          latitude: 47.5556,
+        },
+        nextPoint: {
+          longitude: 19.07641,
+          latitude: 47.55561,
+        },
+        lastAppendTime: 1000,
+        nextAppendTime: 6000,
+      }),
+    ).toBe(true)
+    expect(
+      shouldAppendWalkingTracePoint({
+        lastPoint: {
+          longitude: 19.0764,
+          latitude: 47.5556,
+        },
+        nextPoint: {
+          longitude: 19.0764,
+          latitude: 47.55565,
+        },
+        lastAppendTime: 1000,
+        nextAppendTime: 2000,
+      }),
+    ).toBe(true)
   })
 })

@@ -3,11 +3,18 @@ export type AddressPoint = {
   coordinates: Array<number>
 }
 
+export type AddressMultiPoint = {
+  type: 'MultiPoint'
+  coordinates: Array<Array<number>>
+}
+
 export type EventPointKind = 'eventParking' | 'eventEntrance'
+
+export type ActiveEventPointKind = 'activeParking' | 'activeEntrance'
 
 export type EventPointFeatureProperties = {
   eventId: string
-  kind: EventPointKind
+  kind: EventPointKind | ActiveEventPointKind
   label: string
   date?: string
 }
@@ -26,12 +33,36 @@ export type EventPointFeatureCollection = {
   features: Array<EventPointFeature>
 }
 
+export type ActiveEventWalkingTraceFeature = {
+  type: 'Feature'
+  geometry: {
+    type: 'LineString'
+    coordinates: Array<[number, number]>
+  }
+  properties: {
+    eventId: string
+    kind: 'activeWalkingTrace'
+    label: string
+  }
+}
+
+export type ActiveEventWalkingTraceFeatureCollection = {
+  type: 'FeatureCollection'
+  features: Array<ActiveEventWalkingTraceFeature>
+}
+
+export type ActiveEventFeatureCollections = {
+  points: EventPointFeatureCollection
+  line: ActiveEventWalkingTraceFeatureCollection
+}
+
 export type EventWithPoints =
   | {
       _id?: string
       date?: string
       parkingPoint?: AddressPoint
       entrancePoint?: AddressPoint
+      walkingTraces?: AddressMultiPoint
     }
   | null
   | undefined
@@ -66,6 +97,12 @@ export type UserLocationPoint =
   | null
   | undefined
 
+export type ParkingArrivalLocationStatus =
+  | 'loading'
+  | 'available'
+  | 'error'
+  | 'unsupported'
+
 export type MapCenterPoint =
   | {
       lng: number
@@ -89,12 +126,15 @@ export type MarkerViewportTarget =
 
 const MARKER_ZOOM = 17
 const MAP_FIT_PADDING = 80
+const WALKING_TRACE_TIME_THRESHOLD_MS = 5000
+const WALKING_TRACE_DISTANCE_THRESHOLD_METERS = 5
+const EARTH_RADIUS_METERS = 6371000
 
-function getValidPointCoordinates(
-  point: AddressPoint | undefined,
+function getValidCoordinates(
+  coordinates: Array<number> | undefined,
 ): [number, number] | null {
-  const longitude = point?.coordinates[0]
-  const latitude = point?.coordinates[1]
+  const longitude = coordinates?.[0]
+  const latitude = coordinates?.[1]
 
   if (
     typeof longitude !== 'number' ||
@@ -106,6 +146,12 @@ function getValidPointCoordinates(
   }
 
   return [longitude, latitude]
+}
+
+function getValidPointCoordinates(
+  point: AddressPoint | undefined,
+): [number, number] | null {
+  return getValidCoordinates(point?.coordinates)
 }
 
 function pointToMarker(
@@ -181,6 +227,18 @@ export function getParkingFlowMarkers(
   ].filter((marker): marker is AddressMarker => marker !== null)
 }
 
+export function getParkingArrivalViewportMarkers(
+  address: AddressWithPoints,
+  userLocation: UserLocationPoint,
+  locationStatus: ParkingArrivalLocationStatus,
+): Array<AddressMarker> {
+  if (locationStatus === 'loading' && !getUserLocationMarker(userLocation)) {
+    return []
+  }
+
+  return getParkingFlowMarkers(address, userLocation)
+}
+
 export function getPointFromViewportPoint(
   point: UserLocationPoint,
 ): AddressPoint | null {
@@ -217,6 +275,14 @@ function eventPointLabel(kind: EventPointKind) {
   }
 
   return 'Historical entrance point'
+}
+
+function activeEventPointLabel(kind: ActiveEventPointKind) {
+  if (kind === 'activeParking') {
+    return 'Parking point'
+  }
+
+  return 'Entrance point'
 }
 
 function eventPointId(event: EventWithPoints, eventIndex: number) {
@@ -256,6 +322,31 @@ function eventPointToFeature(
       coordinates,
     },
     properties,
+  }
+}
+
+function activeEventPointToFeature(
+  event: EventWithPoints,
+  kind: ActiveEventPointKind,
+  point: AddressPoint | undefined,
+): EventPointFeature | null {
+  const coordinates = getValidPointCoordinates(point)
+
+  if (!event || !coordinates) {
+    return null
+  }
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Point',
+      coordinates,
+    },
+    properties: {
+      eventId: eventPointId(event, 0),
+      kind,
+      label: activeEventPointLabel(kind),
+    },
   }
 }
 
@@ -312,6 +403,72 @@ export function getEventParkingPointFeatureCollection(
         ),
       )
       .filter((feature): feature is EventPointFeature => feature !== null),
+  }
+}
+
+export function getActiveEventFeatureCollections(
+  event: EventWithPoints,
+): ActiveEventFeatureCollections {
+  const parkingCoordinates = getValidPointCoordinates(event?.parkingPoint)
+  const entranceCoordinates = getValidPointCoordinates(event?.entrancePoint)
+  const points: EventPointFeatureCollection = {
+    type: 'FeatureCollection',
+    features: [
+      activeEventPointToFeature(event, 'activeParking', event?.parkingPoint),
+      activeEventPointToFeature(event, 'activeEntrance', event?.entrancePoint),
+    ].filter((feature): feature is EventPointFeature => feature !== null),
+  }
+  const traceCoordinates =
+    event?.walkingTraces?.coordinates
+      .map(getValidCoordinates)
+      .filter(
+        (coordinate): coordinate is [number, number] => coordinate !== null,
+      ) ?? []
+  const lineCoordinates = [
+    parkingCoordinates,
+    ...traceCoordinates,
+    entranceCoordinates,
+  ].reduce<Array<[number, number]>>((coordinates, coordinate) => {
+    if (!coordinate) {
+      return coordinates
+    }
+
+    const previousCoordinate = coordinates[coordinates.length - 1]
+
+    if (
+      coordinates.length > 0 &&
+      previousCoordinate[0] === coordinate[0] &&
+      previousCoordinate[1] === coordinate[1]
+    ) {
+      return coordinates
+    }
+
+    return [...coordinates, coordinate]
+  }, [])
+  const line: ActiveEventWalkingTraceFeatureCollection = {
+    type: 'FeatureCollection',
+    features:
+      event && lineCoordinates.length >= 2
+        ? [
+            {
+              type: 'Feature',
+              geometry: {
+                type: 'LineString',
+                coordinates: lineCoordinates,
+              },
+              properties: {
+                eventId: eventPointId(event, 0),
+                kind: 'activeWalkingTrace',
+                label: 'Walking trace',
+              },
+            },
+          ]
+        : [],
+  }
+
+  return {
+    points,
+    line,
   }
 }
 
@@ -372,4 +529,70 @@ export function getMapFitPadding(drawerHeight: number | null | undefined) {
     bottom: MAP_FIT_PADDING + bottomInset,
     left: MAP_FIT_PADDING,
   }
+}
+
+function toRadians(value: number) {
+  return (value * Math.PI) / 180
+}
+
+function getDistanceInMeters(
+  firstPoint: UserLocationPoint,
+  secondPoint: UserLocationPoint,
+) {
+  if (
+    !firstPoint ||
+    !secondPoint ||
+    !Number.isFinite(firstPoint.longitude) ||
+    !Number.isFinite(firstPoint.latitude) ||
+    !Number.isFinite(secondPoint.longitude) ||
+    !Number.isFinite(secondPoint.latitude)
+  ) {
+    return Number.POSITIVE_INFINITY
+  }
+
+  const deltaLatitude = toRadians(secondPoint.latitude - firstPoint.latitude)
+  const deltaLongitude = toRadians(secondPoint.longitude - firstPoint.longitude)
+  const firstLatitude = toRadians(firstPoint.latitude)
+  const secondLatitude = toRadians(secondPoint.latitude)
+  const haversine =
+    Math.sin(deltaLatitude / 2) * Math.sin(deltaLatitude / 2) +
+    Math.cos(firstLatitude) *
+      Math.cos(secondLatitude) *
+      Math.sin(deltaLongitude / 2) *
+      Math.sin(deltaLongitude / 2)
+
+  return (
+    EARTH_RADIUS_METERS *
+    2 *
+    Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+  )
+}
+
+export function shouldAppendWalkingTracePoint({
+  lastPoint,
+  nextPoint,
+  lastAppendTime,
+  nextAppendTime,
+}: {
+  lastPoint: UserLocationPoint
+  nextPoint: UserLocationPoint
+  lastAppendTime: number | null
+  nextAppendTime: number
+}) {
+  if (!getPointFromViewportPoint(nextPoint)) {
+    return false
+  }
+
+  if (!lastPoint || lastAppendTime === null) {
+    return true
+  }
+
+  if (nextAppendTime - lastAppendTime >= WALKING_TRACE_TIME_THRESHOLD_MS) {
+    return true
+  }
+
+  return (
+    getDistanceInMeters(lastPoint, nextPoint) >=
+    WALKING_TRACE_DISTANCE_THRESHOLD_METERS
+  )
 }

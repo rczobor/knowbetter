@@ -147,3 +147,50 @@ export const updateEventWalkingTraces = mutation({
     return await ctx.db.get(args.eventId)
   },
 })
+
+export const finishEventAtEntrance = mutation({
+  args: {
+    eventId: v.id('events'),
+    addressId: v.string(),
+    entrancePoint: pointValidator,
+  },
+  handler: async (ctx, args) => {
+    const existingEvent = await ctx.db.get(args.eventId)
+
+    if (!existingEvent) {
+      throw new Error('Event not found')
+    }
+
+    if (existingEvent.addressId !== args.addressId) {
+      throw new Error('Event does not belong to address')
+    }
+
+    await ctx.db.patch(args.eventId, {
+      entrancePoint: args.entrancePoint,
+    })
+
+    const addressPatch: {
+      entrancePoint?: Point
+    } = {
+      entrancePoint: args.entrancePoint,
+    }
+
+    const existingAddress = await ctx.db
+      .query('address')
+      .withIndex('by_addressId', (q) => q.eq('addressId', args.addressId))
+      .unique()
+
+    if (existingAddress) {
+      await ctx.db.patch(existingAddress._id, addressPatch)
+
+      return await ctx.db.get(args.eventId)
+    }
+
+    await ctx.db.insert('address', {
+      addressId: args.addressId,
+      ...addressPatch,
+    })
+
+    return await ctx.db.get(args.eventId)
+  },
+})

@@ -1,11 +1,12 @@
 import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { useMutation, useQuery } from 'convex/react'
 import { DoorOpen, LocateFixed, SquareParking } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Map, { Layer, Marker, Source } from 'react-map-gl/mapbox'
 import type { LayerProps, MapRef } from 'react-map-gl/mapbox'
 import { toast } from 'sonner'
 
+import type { Id } from '../../convex/_generated/dataModel'
 import { Button } from '../components/ui/button'
 import {
   Drawer,
@@ -17,15 +18,27 @@ import {
 } from '../components/ui/drawer'
 import { api } from '../../convex/_generated/api'
 import {
+  getActiveEventFeatureCollections,
   getEventParkingPointFeatureCollection,
+  getEventPointMarkers,
   getMapFitPadding,
   getMarkerViewportTarget,
+  getParkingArrivalViewportMarkers,
   getParkingFlowMarkers,
   getPointFromMapCenter,
   getPointFromViewportPoint,
+  getUserLocationMarker,
+  shouldAppendWalkingTracePoint,
 } from './-address-map'
-import type { AddressMarker, EventPointFeatureCollection } from './-address-map'
+import type {
+  ActiveEventFeatureCollections,
+  AddressMarker,
+  AddressMultiPoint,
+  AddressPoint,
+  EventPointFeatureCollection,
+} from './-address-map'
 import { useUserLocation } from './-user-location'
+import type { UserLocation } from './-user-location'
 
 import 'mapbox-gl/dist/mapbox-gl.css'
 
@@ -63,31 +76,150 @@ const EVENT_PARKING_POINTS_LAYER: LayerProps = {
   },
 }
 
+const ACTIVE_EVENT_WALKING_LINE_LAYER: LayerProps = {
+  id: 'active-event-walking-line',
+  type: 'line',
+  paint: {
+    'line-color': '#18181b',
+    'line-width': 4,
+    'line-dasharray': [1.5, 1.5],
+    'line-opacity': 0.8,
+  },
+}
+
+const ACTIVE_EVENT_PARKING_ORIGIN_LAYER: LayerProps = {
+  id: 'active-event-parking-origin',
+  type: 'circle',
+  filter: ['==', ['get', 'kind'], 'activeParking'],
+  paint: {
+    'circle-color': '#2563eb',
+    'circle-radius': 8,
+    'circle-stroke-color': '#ffffff',
+    'circle-stroke-width': 2,
+  },
+}
+
+const ACTIVE_EVENT_ENTRANCE_DESTINATION_LAYER: LayerProps = {
+  id: 'active-event-entrance-destination',
+  type: 'circle',
+  filter: ['==', ['get', 'kind'], 'activeEntrance'],
+  paint: {
+    'circle-color': '#f97316',
+    'circle-radius': 8,
+    'circle-stroke-color': '#ffffff',
+    'circle-stroke-width': 2,
+  },
+}
+
 type ParkingFlowStep =
   | 'arrive'
   | 'reviewParking'
   | 'adjustParking'
-  | 'readyForEntrance'
+  | 'walkingToEntrance'
+  | 'finishedWalking'
+
+type ActiveDeliveryEvent = {
+  _id: Id<'events'>
+  date?: string
+  parkingPoint?: AddressPoint
+  entrancePoint?: AddressPoint
+  walkingTraces?: AddressMultiPoint
+}
 
 function AddressMap() {
   const { addressId } = addressRoute.useParams()
   const mapRef = useRef<MapRef | null>(null)
-  const [mapLoaded, setMapLoaded] = useState(false)
+  const latestTraceAppendRef = useRef<{
+    point: UserLocation
+    time: number
+  } | null>(null)
+  const isAppendingWalkingTraceRef = useRef(false)
+  const [mapAttached, setMapAttached] = useState(false)
   const [parkingFlowStep, setParkingFlowStep] =
     useState<ParkingFlowStep>('arrive')
   const [isSavingParkingFlow, setIsSavingParkingFlow] = useState(false)
   const [drawerHeight, setDrawerHeight] = useState<number | null>(null)
+  const [currentEvent, setCurrentEvent] = useState<ActiveDeliveryEvent | null>(
+    null,
+  )
+  const [latestWalkingLocation, setLatestWalkingLocation] =
+    useState<UserLocation | null>(null)
   const address = useQuery(api.address.getAddressByAddressId, { addressId })
   const events = useQuery(api.address.getEventsByAddressId, { addressId })
   const addEventForAddressId = useMutation(api.address.addEventForAddressId)
   const updateAddressByAddressId = useMutation(
     api.address.updateAddressByAddressId,
   )
+  const updateEventWalkingTraces = useMutation(
+    api.address.updateEventWalkingTraces,
+  )
+  const finishEventAtEntrance = useMutation(api.address.finishEventAtEntrance)
   const userLocationState = useUserLocation()
   const userLocation = userLocationState.location
-  const markers = getParkingFlowMarkers(address, userLocation)
+  const liveUserLocation =
+    parkingFlowStep === 'walkingToEntrance'
+      ? (latestWalkingLocation ?? userLocation)
+      : userLocation
+  const latestEntranceLocation = latestWalkingLocation ?? userLocation
+  const canFinishWalking =
+    getPointFromViewportPoint(latestEntranceLocation) !== null
+  const isWalkingFlow =
+    parkingFlowStep === 'walkingToEntrance' ||
+    parkingFlowStep === 'finishedWalking'
+  const userLocationMarker = getUserLocationMarker(liveUserLocation)
+  const markers =
+    parkingFlowStep === 'walkingToEntrance'
+      ? userLocationMarker
+        ? [userLocationMarker]
+        : []
+      : parkingFlowStep === 'finishedWalking'
+        ? []
+        : getParkingFlowMarkers(address, userLocation)
+  const viewportMarkers = isWalkingFlow
+    ? [
+        ...getEventPointMarkers(currentEvent ? [currentEvent] : []),
+        ...(parkingFlowStep === 'walkingToEntrance' && userLocationMarker
+          ? [userLocationMarker]
+          : []),
+      ]
+    : parkingFlowStep === 'arrive'
+      ? getParkingArrivalViewportMarkers(
+          address,
+          userLocation,
+          userLocationState.status,
+        )
+      : markers
   const eventParkingPointFeatureCollection =
     getEventParkingPointFeatureCollection(events)
+  const activeEventFeatureCollections =
+    getActiveEventFeatureCollections(currentEvent)
+  const viewportTarget = getMarkerViewportTarget(viewportMarkers)
+  const mapFitPadding = getMapFitPadding(drawerHeight)
+  const shouldUseArrivalInitialFit =
+    parkingFlowStep === 'arrive' && viewportTarget
+  const mapFitKey = shouldUseArrivalInitialFit
+    ? `arrival-${JSON.stringify(viewportTarget)}-${JSON.stringify(mapFitPadding)}`
+    : 'address-map'
+  const mapInitialViewState =
+    shouldUseArrivalInitialFit && viewportTarget.type === 'fitBounds'
+      ? {
+          bounds: viewportTarget.bounds,
+          fitBoundsOptions: {
+            padding: mapFitPadding,
+            maxZoom: 17,
+          },
+        }
+      : shouldUseArrivalInitialFit && viewportTarget.type === 'flyTo'
+        ? {
+            longitude: viewportTarget.longitude,
+            latitude: viewportTarget.latitude,
+            zoom: viewportTarget.zoom,
+          }
+        : INITIAL_VIEW_STATE
+  const handleMapRef = useCallback((map: MapRef | null) => {
+    mapRef.current = map
+    setMapAttached(map !== null)
+  }, [])
 
   useEffect(() => {
     if (address !== null) {
@@ -102,13 +234,10 @@ function AddressMap() {
 
   useEffect(() => {
     const map = mapRef.current
-    const viewportTarget = getMarkerViewportTarget(
-      getParkingFlowMarkers(address, userLocation),
-    )
 
     if (
       parkingFlowStep === 'adjustParking' ||
-      !mapLoaded ||
+      !mapAttached ||
       !map ||
       !viewportTarget
     ) {
@@ -127,14 +256,16 @@ function AddressMap() {
     map.flyTo({
       center: [viewportTarget.longitude, viewportTarget.latitude],
       zoom: viewportTarget.zoom,
+      padding: getMapFitPadding(drawerHeight),
+      retainPadding: false,
       duration: 600,
     })
-  }, [address, drawerHeight, mapLoaded, parkingFlowStep, userLocation])
+  }, [drawerHeight, mapAttached, parkingFlowStep, viewportTarget])
 
   useEffect(() => {
     const map = mapRef.current
 
-    if (parkingFlowStep !== 'adjustParking' || !mapLoaded || !map) {
+    if (parkingFlowStep !== 'adjustParking' || !mapAttached || !map) {
       return
     }
 
@@ -147,7 +278,89 @@ function AddressMap() {
       zoom: 18,
       duration: 400,
     })
-  }, [mapLoaded, parkingFlowStep, userLocation])
+  }, [mapAttached, parkingFlowStep, userLocation])
+
+  useEffect(() => {
+    if (
+      parkingFlowStep !== 'walkingToEntrance' ||
+      !currentEvent?._id ||
+      typeof navigator === 'undefined' ||
+      !('geolocation' in navigator)
+    ) {
+      return
+    }
+
+    let active = true
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const nextLocation = {
+          longitude: position.coords.longitude,
+          latitude: position.coords.latitude,
+        }
+        const nextPoint = getPointFromViewportPoint(nextLocation)
+
+        if (!active || !nextPoint) {
+          return
+        }
+
+        setLatestWalkingLocation(nextLocation)
+
+        const appendTime = Date.now()
+        const shouldAppend = shouldAppendWalkingTracePoint({
+          lastPoint: latestTraceAppendRef.current?.point ?? null,
+          nextPoint: nextLocation,
+          lastAppendTime: latestTraceAppendRef.current?.time ?? null,
+          nextAppendTime: appendTime,
+        })
+
+        if (!shouldAppend || isAppendingWalkingTraceRef.current) {
+          return
+        }
+
+        isAppendingWalkingTraceRef.current = true
+
+        void updateEventWalkingTraces({
+          eventId: currentEvent._id,
+          point: nextPoint,
+        })
+          .then((updatedEvent) => {
+            if (!active || !updatedEvent) {
+              return
+            }
+
+            setCurrentEvent(updatedEvent)
+            latestTraceAppendRef.current = {
+              point: nextLocation,
+              time: appendTime,
+            }
+          })
+          .catch(() => {
+            if (active) {
+              toast.error('Could not update walking trace')
+            }
+          })
+          .finally(() => {
+            isAppendingWalkingTraceRef.current = false
+          })
+      },
+      (error) => {
+        if (active) {
+          toast.error('Walking location unavailable', {
+            description: error.message,
+          })
+        }
+      },
+      {
+        enableHighAccuracy: true,
+      },
+    )
+
+    return () => {
+      active = false
+      navigator.geolocation.clearWatch(watchId)
+      isAppendingWalkingTraceRef.current = false
+    }
+  }, [currentEvent?._id, parkingFlowStep, updateEventWalkingTraces])
 
   async function handleArrived() {
     const arrivedParkingPoint = getPointFromViewportPoint(userLocation)
@@ -162,11 +375,12 @@ function AddressMap() {
     setIsSavingParkingFlow(true)
 
     try {
-      await addEventForAddressId({
+      const createdEvent = await addEventForAddressId({
         addressId,
         date: new Date().toISOString(),
         parkingPoint: arrivedParkingPoint,
       })
+      setCurrentEvent(createdEvent)
       setParkingFlowStep('reviewParking')
     } catch {
       toast.error('Could not create arrival event')
@@ -199,9 +413,53 @@ function AddressMap() {
         addressId,
         parkingPoint: correctedParkingPoint,
       })
-      setParkingFlowStep('readyForEntrance')
+      startWalkingToEntrance()
     } catch {
       toast.error('Could not update parking point')
+    } finally {
+      setIsSavingParkingFlow(false)
+    }
+  }
+
+  function startWalkingToEntrance() {
+    if (!currentEvent?._id) {
+      toast.error('Arrival event unavailable')
+      return
+    }
+
+    setLatestWalkingLocation(userLocation)
+    latestTraceAppendRef.current = null
+    setParkingFlowStep('walkingToEntrance')
+  }
+
+  async function handleFinishWalking() {
+    const entrancePoint = getPointFromViewportPoint(latestEntranceLocation)
+
+    if (!currentEvent?._id) {
+      toast.error('Arrival event unavailable')
+      return
+    }
+
+    if (!entrancePoint) {
+      toast.error('Entrance location unavailable', {
+        description: 'Wait for your current location before finishing.',
+      })
+      return
+    }
+
+    setIsSavingParkingFlow(true)
+
+    try {
+      const finishedEvent = await finishEventAtEntrance({
+        eventId: currentEvent._id,
+        addressId,
+        entrancePoint,
+      })
+
+      setCurrentEvent(finishedEvent)
+      setParkingFlowStep('finishedWalking')
+    } catch {
+      toast.error('Could not save entrance point')
     } finally {
       setIsSavingParkingFlow(false)
     }
@@ -210,13 +468,18 @@ function AddressMap() {
   return (
     <div className="relative h-dvh w-screen overflow-hidden">
       <Map
-        ref={mapRef}
+        key={mapFitKey}
+        ref={handleMapRef}
         mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
-        initialViewState={INITIAL_VIEW_STATE}
+        initialViewState={mapInitialViewState}
         style={{ height: '100%', width: '100%', position: 'relative' }}
         mapStyle={MAP_STYLE}
-        onLoad={() => setMapLoaded(true)}
       >
+        {isWalkingFlow ? (
+          <ActiveEventLayers
+            activeEventFeatureCollections={activeEventFeatureCollections}
+          />
+        ) : null}
         {parkingFlowStep === 'adjustParking' ? (
           <EventParkingPointLayer
             eventParkingPointFeatureCollection={
@@ -235,11 +498,39 @@ function AddressMap() {
         isSaving={isSavingParkingFlow}
         onHeightChange={setDrawerHeight}
         onArrived={handleArrived}
-        onAcceptParking={() => setParkingFlowStep('readyForEntrance')}
+        onAcceptParking={startWalkingToEntrance}
         onAdjustParking={() => setParkingFlowStep('adjustParking')}
         onSaveCorrectedParking={handleSaveCorrectedParking}
+        onFinishWalking={handleFinishWalking}
+        canFinishWalking={canFinishWalking}
       />
     </div>
+  )
+}
+
+function ActiveEventLayers({
+  activeEventFeatureCollections,
+}: {
+  activeEventFeatureCollections: ActiveEventFeatureCollections
+}) {
+  return (
+    <>
+      <Source
+        id="active-event-walking-line"
+        type="geojson"
+        data={activeEventFeatureCollections.line}
+      >
+        <Layer {...ACTIVE_EVENT_WALKING_LINE_LAYER} />
+      </Source>
+      <Source
+        id="active-event-points"
+        type="geojson"
+        data={activeEventFeatureCollections.points}
+      >
+        <Layer {...ACTIVE_EVENT_PARKING_ORIGIN_LAYER} />
+        <Layer {...ACTIVE_EVENT_ENTRANCE_DESTINATION_LAYER} />
+      </Source>
+    </>
   )
 }
 
@@ -285,6 +576,8 @@ function ParkingArrivalDrawer({
   onAcceptParking,
   onAdjustParking,
   onSaveCorrectedParking,
+  onFinishWalking,
+  canFinishWalking,
 }: {
   step: ParkingFlowStep
   locationStatus: string
@@ -294,13 +587,16 @@ function ParkingArrivalDrawer({
   onAcceptParking: () => void
   onAdjustParking: () => void
   onSaveCorrectedParking: () => void
+  onFinishWalking: () => void
+  canFinishWalking: boolean
 }) {
   const canArrive = locationStatus === 'available' && !isSaving
-  const drawerContentRef = useRef<HTMLDivElement | null>(null)
+  const canSaveEntrance = canFinishWalking && !isSaving
+  const [drawerContent, setDrawerContent] = useState<HTMLDivElement | null>(
+    null,
+  )
 
   useEffect(() => {
-    const drawerContent = drawerContentRef.current
-
     if (!drawerContent) {
       onHeightChange(null)
       return
@@ -320,12 +616,12 @@ function ParkingArrivalDrawer({
     resizeObserver.observe(drawerContent)
 
     return () => resizeObserver.disconnect()
-  }, [onHeightChange, step])
+  }, [drawerContent, onHeightChange, step])
 
   return (
     <Drawer open modal={false} dismissible={false}>
       <DrawerContent
-        ref={drawerContentRef}
+        ref={setDrawerContent}
         showOverlay={false}
         className="z-30 border-white/10"
       >
@@ -358,9 +654,18 @@ function ParkingArrivalDrawer({
               {isSaving ? 'Saving parking...' : 'Save parking point'}
             </Button>
           ) : null}
-          {step === 'readyForEntrance' ? (
+          {step === 'walkingToEntrance' ? (
+            <Button
+              size="lg"
+              disabled={!canSaveEntrance}
+              onClick={onFinishWalking}
+            >
+              {isSaving ? 'Saving entrance...' : 'I am at the entrance'}
+            </Button>
+          ) : null}
+          {step === 'finishedWalking' ? (
             <Button size="lg" disabled>
-              Continue to entrance next
+              Entrance saved
             </Button>
           ) : null}
         </DrawerFooter>
@@ -378,8 +683,12 @@ function parkingFlowTitle(step: ParkingFlowStep) {
     return 'Set parking point'
   }
 
-  if (step === 'readyForEntrance') {
-    return 'Ready for entrance'
+  if (step === 'walkingToEntrance') {
+    return 'Walk to entrance'
+  }
+
+  if (step === 'finishedWalking') {
+    return 'Entrance point saved'
   }
 
   return 'Arrive at address'
@@ -394,8 +703,16 @@ function parkingFlowDescription(step: ParkingFlowStep, locationStatus: string) {
     return 'Place the parking point at the center of the map.'
   }
 
-  if (step === 'readyForEntrance') {
-    return 'The walking-to-door step comes next.'
+  if (step === 'walkingToEntrance') {
+    if (locationStatus === 'error' || locationStatus === 'unsupported') {
+      return 'Current location is unavailable.'
+    }
+
+    return 'Tap the button when you arrive at the entrance.'
+  }
+
+  if (step === 'finishedWalking') {
+    return 'Walking trace and entrance point were saved.'
   }
 
   if (locationStatus === 'available') {
