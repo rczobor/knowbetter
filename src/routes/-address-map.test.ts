@@ -9,6 +9,7 @@ import {
   getPointFromMapCenter,
   getPointFromViewportPoint,
   getAddressMarkers,
+  getMapFitPadding,
   getMarkerViewportTarget,
   getUserLocationMarker,
 } from './-address-map'
@@ -402,6 +403,24 @@ describe('address map helpers', () => {
         [19.0712, 47.5534],
         [19.0812, 47.5594],
       ],
+    })
+  })
+
+  it('adds measured drawer height to the bottom fit padding', () => {
+    expect(getMapFitPadding(256)).toEqual({
+      top: 80,
+      right: 80,
+      bottom: 336,
+      left: 80,
+    })
+  })
+
+  it('uses base fit padding when the drawer height is unavailable', () => {
+    expect(getMapFitPadding(null)).toEqual({
+      top: 80,
+      right: 80,
+      bottom: 80,
+      left: 80,
     })
   })
 })
