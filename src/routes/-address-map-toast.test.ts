@@ -198,11 +198,16 @@ describe('Address map missing address toast', () => {
       new URL('./address.$addressId.tsx', import.meta.url),
       'utf8',
     )
+    const layerSource = readFileSync(
+      new URL('./-active-event-layers.tsx', import.meta.url),
+      'utf8',
+    )
 
     expect(source).toContain('api.address.finishEventAtEntrance')
     expect(source).toContain("setParkingFlowStep('finishedWalking')")
-    expect(source).toContain('active-event-walking-line')
-    expect(source).toContain('active-event-parking-origin')
-    expect(source).toContain('active-event-entrance-destination')
+    expect(source).toContain('<ActiveEventLayers')
+    expect(layerSource).toContain('active-event-walking-line')
+    expect(layerSource).toContain('active-event-parking-origin')
+    expect(layerSource).toContain('active-event-entrance-destination')
   })
 })

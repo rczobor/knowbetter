@@ -485,6 +485,38 @@ export function getEventPointMarkers(
   })
 }
 
+export function getActiveEventViewportMarkers(
+  event: EventWithPoints,
+): Array<MapViewportPoint> {
+  if (!event) {
+    return []
+  }
+
+  const parkingCoordinates = getValidPointCoordinates(event.parkingPoint)
+  const entranceCoordinates = getValidPointCoordinates(event.entrancePoint)
+  const traceCoordinates =
+    event.walkingTraces?.coordinates
+      .map(getValidCoordinates)
+      .filter(
+        (coordinate): coordinate is [number, number] => coordinate !== null,
+      ) ?? []
+
+  return [parkingCoordinates, ...traceCoordinates, entranceCoordinates].flatMap(
+    (coordinate) => {
+      if (!coordinate) {
+        return []
+      }
+
+      const [longitude, latitude] = coordinate
+
+      return {
+        longitude,
+        latitude,
+      }
+    },
+  )
+}
+
 export function getMarkerViewportTarget(
   markers: Array<MapViewportPoint>,
 ): MarkerViewportTarget {

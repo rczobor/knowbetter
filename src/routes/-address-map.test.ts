@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   shouldAppendWalkingTracePoint,
   getActiveEventFeatureCollections,
+  getActiveEventViewportMarkers,
   getAddressParkingMarker,
   getEventPointFeatureCollection,
   getEventParkingPointFeatureCollection,
@@ -587,5 +588,46 @@ describe('address map helpers', () => {
         nextAppendTime: 2000,
       }),
     ).toBe(true)
+  })
+
+  it('builds viewport markers from active event parking, trace, and entrance', () => {
+    const markers = getActiveEventViewportMarkers({
+      _id: 'event-3',
+      parkingPoint: {
+        type: 'Point',
+        coordinates: [19.0764, 47.5556],
+      },
+      walkingTraces: {
+        type: 'MultiPoint',
+        coordinates: [
+          [19.0766, 47.5558],
+          [Number.NaN, 47.556],
+          [19.0771, 47.5561],
+        ],
+      },
+      entrancePoint: {
+        type: 'Point',
+        coordinates: [19.0781, 47.5562],
+      },
+    })
+
+    expect(markers).toEqual([
+      {
+        longitude: 19.0764,
+        latitude: 47.5556,
+      },
+      {
+        longitude: 19.0766,
+        latitude: 47.5558,
+      },
+      {
+        longitude: 19.0771,
+        latitude: 47.5561,
+      },
+      {
+        longitude: 19.0781,
+        latitude: 47.5562,
+      },
+    ])
   })
 })

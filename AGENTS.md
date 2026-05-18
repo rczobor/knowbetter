@@ -23,6 +23,10 @@ management and scripts.
 - Run project scripts with `bun --bun run <script>`, for example
   `bun --bun run dev`, `bun --bun run test`, `bun --bun run lint`, and
   `bun --bun run build`.
+- Before starting `bun dev` or `bun --bun run dev`, check whether the dev
+  server is already running on the local device. Do not start a second local
+  dev server for this app; multiple local TanStack Start dev processes can
+  fight over route generation and cause infinite rerenders.
 - Run one-off CLIs with `bunx --bun`, for example
   `bunx --bun convex dev`, `bunx --bun convex codegen`, and
   `bunx --bun shadcn@latest add button`.

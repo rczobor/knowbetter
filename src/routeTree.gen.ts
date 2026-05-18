@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AddressAddressIdRouteImport } from './routes/address.$addressId'
+import { Route as AddressAddressIdEventEventIdRouteImport } from './routes/address.$addressId_.event.$eventId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,45 @@ const AddressAddressIdRoute = AddressAddressIdRouteImport.update({
   path: '/address/$addressId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AddressAddressIdEventEventIdRoute =
+  AddressAddressIdEventEventIdRouteImport.update({
+    id: '/address/$addressId_/event/$eventId',
+    path: '/address/$addressId/event/$eventId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/address/$addressId': typeof AddressAddressIdRoute
+  '/address/$addressId/event/$eventId': typeof AddressAddressIdEventEventIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/address/$addressId': typeof AddressAddressIdRoute
+  '/address/$addressId/event/$eventId': typeof AddressAddressIdEventEventIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/address/$addressId': typeof AddressAddressIdRoute
+  '/address/$addressId_/event/$eventId': typeof AddressAddressIdEventEventIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/address/$addressId'
+  fullPaths: '/' | '/address/$addressId' | '/address/$addressId/event/$eventId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/address/$addressId'
-  id: '__root__' | '/' | '/address/$addressId'
+  to: '/' | '/address/$addressId' | '/address/$addressId/event/$eventId'
+  id:
+    | '__root__'
+    | '/'
+    | '/address/$addressId'
+    | '/address/$addressId_/event/$eventId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddressAddressIdRoute: typeof AddressAddressIdRoute
+  AddressAddressIdEventEventIdRoute: typeof AddressAddressIdEventEventIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +80,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AddressAddressIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/address/$addressId_/event/$eventId': {
+      id: '/address/$addressId_/event/$eventId'
+      path: '/address/$addressId/event/$eventId'
+      fullPath: '/address/$addressId/event/$eventId'
+      preLoaderRoute: typeof AddressAddressIdEventEventIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddressAddressIdRoute: AddressAddressIdRoute,
+  AddressAddressIdEventEventIdRoute: AddressAddressIdEventEventIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

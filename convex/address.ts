@@ -122,6 +122,28 @@ export const getEventsByAddressId = query({
   },
 })
 
+export const getEventByIdForAddressId = query({
+  args: {
+    addressId: v.string(),
+    eventId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const eventId = ctx.db.normalizeId('events', args.eventId)
+
+    if (!eventId) {
+      return null
+    }
+
+    const event = await ctx.db.get(eventId)
+
+    if (!event || event.addressId !== args.addressId) {
+      return null
+    }
+
+    return event
+  },
+})
+
 export const updateEventWalkingTraces = mutation({
   args: {
     eventId: v.id('events'),

@@ -42,4 +42,21 @@ describe('address Convex mutations', () => {
     expect(source).toContain('entrancePoint: args.entrancePoint')
     expect(source).toContain('...addressPatch')
   })
+
+  it('loads one event by id only when it belongs to the requested address', () => {
+    const source = readFileSync(
+      new URL('../../convex/address.ts', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('export const getEventByIdForAddressId = query')
+    expect(source).toContain("ctx.db.normalizeId('events', args.eventId)")
+    expect(source).toContain('if (!eventId)')
+    expect(source).toContain('const event = await ctx.db.get(eventId)')
+    expect(source).toContain(
+      'if (!event || event.addressId !== args.addressId)',
+    )
+    expect(source).toContain('return null')
+    expect(source).toContain('return event')
+  })
 })
