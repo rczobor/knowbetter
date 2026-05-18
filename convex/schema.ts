@@ -2,13 +2,34 @@ import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
 export default defineSchema({
-  products: defineTable({
-    title: v.string(),
-    imageId: v.string(),
-    price: v.number(),
-  }),
-  todos: defineTable({
-    text: v.string(),
-    completed: v.boolean(),
-  }),
+  events: defineTable({
+    addressId: v.string(),
+    date: v.string(),
+    parkingPoint: v.object({
+      type: v.literal('Point'),
+      coordinates: v.array(v.number()),
+    }),
+    walkingTraces: v.array(
+      v.object({
+        type: v.literal('Point'),
+        coordinates: v.array(v.number()),
+      }),
+    )
+  }).index('by_addressId', ['addressId']),
+
+  address: defineTable({
+    addressId: v.string(),
+    parkingPoint: v.optional(
+      v.object({
+        type: v.literal('Point'),
+        coordinates: v.array(v.number()),
+      }),
+    ),
+    entrancePoint: v.optional(
+      v.object({
+        type: v.literal('Point'),
+        coordinates: v.array(v.number()),
+      }),
+    ),
+  }).index('by_addressId', ['addressId']),
 })
