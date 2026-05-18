@@ -18,7 +18,11 @@ export function useUserLocation(): UserLocation | null {
     navigator.geolocation.getCurrentPosition((position) => {
       const { longitude, latitude } = position.coords
 
-      if (!active || !Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+      if (
+        !active ||
+        !Number.isFinite(longitude) ||
+        !Number.isFinite(latitude)
+      ) {
         return
       }
 

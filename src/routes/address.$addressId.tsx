@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
 import { DoorOpen, LocateFixed, SquareParking } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -21,6 +21,8 @@ export const Route = createFileRoute('/address/$addressId')({
   component: AddressMap,
 })
 
+const addressRoute = getRouteApi('/address/$addressId')
+
 const MAPBOX_ACCESS_TOKEN = (import.meta as any).env.VITE_MAPBOX_ACCESS_TOKEN
 const MAP_STYLE = 'mapbox://styles/robertczobor/clnu2vyeo00n801qw3eyz5fm3'
 const INITIAL_VIEW_STATE = {
@@ -39,7 +41,7 @@ const MARKER_CLASS_NAMES: Record<AddressMarker['id'], string> = {
 }
 
 function AddressMap() {
-  const { addressId } = Route.useParams()
+  const { addressId } = addressRoute.useParams()
   const mapRef = useRef<MapRef | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const address = useQuery(api.address.getAddressByAddressId, { addressId })
