@@ -88,6 +88,7 @@ export type MarkerViewportTarget =
   | null
 
 const MARKER_ZOOM = 17
+const MAP_FIT_PADDING = 80
 
 function getValidPointCoordinates(
   point: AddressPoint | undefined,
@@ -354,5 +355,21 @@ export function getMarkerViewportTarget(
       [Math.min(...longitudes), Math.min(...latitudes)],
       [Math.max(...longitudes), Math.max(...latitudes)],
     ],
+  }
+}
+
+export function getMapFitPadding(drawerHeight: number | null | undefined) {
+  const bottomInset =
+    typeof drawerHeight === 'number' &&
+    Number.isFinite(drawerHeight) &&
+    drawerHeight > 0
+      ? Math.ceil(drawerHeight)
+      : 0
+
+  return {
+    top: MAP_FIT_PADDING,
+    right: MAP_FIT_PADDING,
+    bottom: MAP_FIT_PADDING + bottomInset,
+    left: MAP_FIT_PADDING,
   }
 }

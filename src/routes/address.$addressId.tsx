@@ -18,6 +18,7 @@ import {
 import { api } from '../../convex/_generated/api'
 import {
   getEventParkingPointFeatureCollection,
+  getMapFitPadding,
   getMarkerViewportTarget,
   getParkingFlowMarkers,
   getPointFromMapCenter,
@@ -75,6 +76,7 @@ function AddressMap() {
   const [parkingFlowStep, setParkingFlowStep] =
     useState<ParkingFlowStep>('arrive')
   const [isSavingParkingFlow, setIsSavingParkingFlow] = useState(false)
+  const [drawerHeight, setDrawerHeight] = useState<number | null>(null)
   const address = useQuery(api.address.getAddressByAddressId, { addressId })
   const events = useQuery(api.address.getEventsByAddressId, { addressId })
   const addEventForAddressId = useMutation(api.address.addEventForAddressId)
@@ -115,7 +117,7 @@ function AddressMap() {
 
     if (viewportTarget.type === 'fitBounds') {
       map.fitBounds(viewportTarget.bounds, {
-        padding: 80,
+        padding: getMapFitPadding(drawerHeight),
         maxZoom: 17,
         duration: 600,
       })
@@ -127,7 +129,7 @@ function AddressMap() {
       zoom: viewportTarget.zoom,
       duration: 600,
     })
-  }, [address, mapLoaded, parkingFlowStep, userLocation])
+  }, [address, drawerHeight, mapLoaded, parkingFlowStep, userLocation])
 
   useEffect(() => {
     const map = mapRef.current
@@ -231,6 +233,7 @@ function AddressMap() {
         step={parkingFlowStep}
         locationStatus={userLocationState.status}
         isSaving={isSavingParkingFlow}
+        onHeightChange={setDrawerHeight}
         onArrived={handleArrived}
         onAcceptParking={() => setParkingFlowStep('readyForEntrance')}
         onAdjustParking={() => setParkingFlowStep('adjustParking')}
@@ -277,6 +280,7 @@ function ParkingArrivalDrawer({
   step,
   locationStatus,
   isSaving,
+  onHeightChange,
   onArrived,
   onAcceptParking,
   onAdjustParking,
@@ -285,16 +289,46 @@ function ParkingArrivalDrawer({
   step: ParkingFlowStep
   locationStatus: string
   isSaving: boolean
+  onHeightChange: (height: number | null) => void
   onArrived: () => void
   onAcceptParking: () => void
   onAdjustParking: () => void
   onSaveCorrectedParking: () => void
 }) {
   const canArrive = locationStatus === 'available' && !isSaving
+  const drawerContentRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const drawerContent = drawerContentRef.current
+
+    if (!drawerContent) {
+      onHeightChange(null)
+      return
+    }
+
+    const updateHeight = () => {
+      onHeightChange(drawerContent.getBoundingClientRect().height)
+    }
+
+    updateHeight()
+
+    if (typeof ResizeObserver === 'undefined') {
+      return
+    }
+
+    const resizeObserver = new ResizeObserver(updateHeight)
+    resizeObserver.observe(drawerContent)
+
+    return () => resizeObserver.disconnect()
+  }, [onHeightChange, step])
 
   return (
     <Drawer open modal={false} dismissible={false}>
-      <DrawerContent showOverlay={false} className="z-30 border-white/10">
+      <DrawerContent
+        ref={drawerContentRef}
+        showOverlay={false}
+        className="z-30 border-white/10"
+      >
         <DrawerHeader className="text-left">
           <DrawerTitle>{parkingFlowTitle(step)}</DrawerTitle>
           <DrawerDescription>
