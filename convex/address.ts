@@ -6,6 +6,11 @@ const pointValidator = v.object({
   coordinates: v.array(v.number()),
 })
 
+const multiPointValidator = v.object({
+  type: v.literal('MultiPoint'),
+  coordinates: v.array(v.array(v.number())),
+})
+
 export const getAddressByAddressId = query({
   args: {
     addressId: v.string(),
@@ -46,6 +51,27 @@ export const updateAddressByAddressId = mutation({
     })
 
     return await ctx.db.get(addressId)
+  },
+})
+
+export const addEventForAddressId = mutation({
+  args: {
+    addressId: v.string(),
+    date: v.string(),
+    parkingPoint: v.optional(pointValidator),
+    entrancePoint: v.optional(pointValidator),
+    walkingTraces: v.optional(multiPointValidator),
+  },
+  handler: async (ctx, args) => {
+    const eventId = await ctx.db.insert('events', {
+      addressId: args.addressId,
+      date: args.date,
+      parkingPoint: args.parkingPoint,
+      entrancePoint: args.entrancePoint,
+      walkingTraces: args.walkingTraces,
+    })
+
+    return await ctx.db.get(eventId)
   },
 })
 
