@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getAddressMarkers,
   getMarkerViewportTarget,
+  getUserLocationMarker,
 } from './-address-map'
 
 describe('address map helpers', () => {
@@ -80,6 +81,51 @@ describe('address map helpers', () => {
       type: 'fitBounds',
       bounds: [
         [19.0764, 47.5556],
+        [19.0781, 47.5562],
+      ],
+    })
+  })
+
+  it('builds a user location marker from browser coordinates', () => {
+    expect(
+      getUserLocationMarker({
+        longitude: 19.0712,
+        latitude: 47.5534,
+      }),
+    ).toEqual({
+      id: 'userLocation',
+      label: 'Your current location',
+      longitude: 19.0712,
+      latitude: 47.5534,
+    })
+  })
+
+  it('computes a fit viewport target for address and user location markers', () => {
+    const viewportTarget = getMarkerViewportTarget([
+      {
+        id: 'parking',
+        label: 'Parking point',
+        longitude: 19.0764,
+        latitude: 47.5556,
+      },
+      {
+        id: 'entrance',
+        label: 'Entrance point',
+        longitude: 19.0781,
+        latitude: 47.5562,
+      },
+      {
+        id: 'userLocation',
+        label: 'Your current location',
+        longitude: 19.0712,
+        latitude: 47.5534,
+      },
+    ])
+
+    expect(viewportTarget).toEqual({
+      type: 'fitBounds',
+      bounds: [
+        [19.0712, 47.5534],
         [19.0781, 47.5562],
       ],
     })

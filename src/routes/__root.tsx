@@ -7,6 +7,7 @@ import {
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
+import { Toaster } from '../components/ui/sonner'
 import ConvexProvider from '../integrations/convex/provider'
 
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
@@ -73,6 +74,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <ConvexProvider>
           {children}
+          <Toaster />
           <TanStackDevtools
             config={{
               position: 'bottom-right',

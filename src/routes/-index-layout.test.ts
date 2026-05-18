@@ -10,4 +10,12 @@ describe('Home route map layout', () => {
     expect(source).toContain("width: '100%'")
     expect(source).not.toContain('style={{ width: 1000, height: 700 }}')
   })
+
+  it('uses the shared current location hook and renders the user location marker', () => {
+    const source = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
+
+    expect(source).toContain("import { useUserLocation } from './-user-location'")
+    expect(source).toContain('getUserLocationMarker(userLocation)')
+    expect(source).toContain('<UserLocationMarker marker={userLocationMarker} />')
+  })
 })

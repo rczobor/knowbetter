@@ -9,11 +9,16 @@ export type AddressWithPoints = {
 } | null | undefined
 
 export type AddressMarker = {
-  id: 'parking' | 'entrance'
+  id: 'parking' | 'entrance' | 'userLocation'
   label: string
   longitude: number
   latitude: number
 }
+
+export type UserLocationPoint = {
+  longitude: number
+  latitude: number
+} | null | undefined
 
 export type MarkerViewportTarget =
   | {
@@ -64,6 +69,25 @@ export function getAddressMarkers(address: AddressWithPoints): Array<AddressMark
     pointToMarker('parking', 'Parking point', address.parkingPoint),
     pointToMarker('entrance', 'Entrance point', address.entrancePoint),
   ].filter((marker): marker is AddressMarker => marker !== null)
+}
+
+export function getUserLocationMarker(
+  userLocation: UserLocationPoint,
+): AddressMarker | null {
+  if (
+    !userLocation ||
+    !Number.isFinite(userLocation.longitude) ||
+    !Number.isFinite(userLocation.latitude)
+  ) {
+    return null
+  }
+
+  return {
+    id: 'userLocation',
+    label: 'Your current location',
+    longitude: userLocation.longitude,
+    latitude: userLocation.latitude,
+  }
 }
 
 export function getMarkerViewportTarget(

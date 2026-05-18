@@ -1,13 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
-import { DoorOpen, SquareParking } from 'lucide-react'
+import { DoorOpen, LocateFixed, SquareParking } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Map, { Marker } from 'react-map-gl/mapbox'
 import type { MapRef } from 'react-map-gl/mapbox'
+import { toast } from 'sonner'
 
 import { api } from '../../convex/_generated/api'
-import { getAddressMarkers, getMarkerViewportTarget } from './-address-map'
+import {
+  getAddressMarkers,
+  getMarkerViewportTarget,
+  getUserLocationMarker,
+} from './-address-map'
 import type { AddressMarker } from './-address-map'
+import { useUserLocation } from './-user-location'
 
 import 'mapbox-gl/dist/mapbox-gl.css'
 
@@ -28,6 +34,8 @@ const MARKER_CLASS_NAMES: Record<AddressMarker['id'], string> = {
     'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-white shadow-lg shadow-black/25',
   entrance:
     'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-white shadow-lg shadow-black/25',
+  userLocation:
+    'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-zinc-950 text-white shadow-lg shadow-black/25',
 }
 
 function AddressMap() {
@@ -35,11 +43,32 @@ function AddressMap() {
   const mapRef = useRef<MapRef | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const address = useQuery(api.address.getAddressByAddressId, { addressId })
-  const markers = getAddressMarkers(address)
+  const userLocation = useUserLocation()
+  const addressMarkers = getAddressMarkers(address)
+  const userLocationMarker = getUserLocationMarker(userLocation)
+  const markers = userLocationMarker
+    ? [...addressMarkers, userLocationMarker]
+    : addressMarkers
+
+  useEffect(() => {
+    if (address !== null) {
+      return
+    }
+
+    toast.error('Address not found', {
+      id: `address-not-found-${addressId}`,
+      description: `No address exists for ${addressId}.`,
+    })
+  }, [address, addressId])
 
   useEffect(() => {
     const map = mapRef.current
-    const viewportTarget = getMarkerViewportTarget(getAddressMarkers(address))
+    const currentAddressMarkers = getAddressMarkers(address)
+    const currentUserLocationMarker = getUserLocationMarker(userLocation)
+    const currentMarkers = currentUserLocationMarker
+      ? [...currentAddressMarkers, currentUserLocationMarker]
+      : currentAddressMarkers
+    const viewportTarget = getMarkerViewportTarget(currentMarkers)
 
     if (!mapLoaded || !map || !viewportTarget) {
       return
@@ -59,7 +88,7 @@ function AddressMap() {
       zoom: viewportTarget.zoom,
       duration: 600,
     })
-  }, [address, mapLoaded])
+  }, [address, mapLoaded, userLocation])
 
   return (
     <div className="h-dvh w-screen overflow-hidden">
@@ -84,15 +113,26 @@ function AddressMapMarker({ marker }: { marker: AddressMarker }) {
     <Marker
       longitude={marker.longitude}
       latitude={marker.latitude}
-      anchor="bottom"
+      anchor={marker.id === 'userLocation' ? 'center' : 'bottom'}
     >
       <div className={MARKER_CLASS_NAMES[marker.id]} aria-label={marker.label}>
-        {marker.id === 'parking' ? (
-          <SquareParking className="h-5 w-5" aria-hidden="true" />
-        ) : (
-          <DoorOpen className="h-5 w-5" aria-hidden="true" />
-        )}
+        {marker.id === 'userLocation' ? (
+          <span className="sr-only">Your current location</span>
+        ) : null}
+        <AddressMapMarkerIcon marker={marker} />
       </div>
     </Marker>
   )
+}
+
+function AddressMapMarkerIcon({ marker }: { marker: AddressMarker }) {
+  if (marker.id === 'parking') {
+    return <SquareParking className="h-5 w-5" aria-hidden="true" />
+  }
+
+  if (marker.id === 'entrance') {
+    return <DoorOpen className="h-5 w-5" aria-hidden="true" />
+  }
+
+  return <LocateFixed className="h-5 w-5" aria-hidden="true" />
 }
