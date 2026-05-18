@@ -86,3 +86,29 @@ export const getEventsByAddressId = query({
       .collect()
   },
 })
+
+export const updateEventWalkingTraces = mutation({
+  args: {
+    eventId: v.id('events'),
+    point: pointValidator,
+  },
+  handler: async (ctx, args) => {
+    const existingEvent = await ctx.db.get(args.eventId)
+
+    if (!existingEvent) {
+      throw new Error('Event not found')
+    }
+
+    const existingCoordinates = existingEvent.walkingTraces?.coordinates ?? []
+    const nextCoordinates = [...existingCoordinates, args.point.coordinates]
+
+    await ctx.db.patch(args.eventId, {
+      walkingTraces: {
+        type: 'MultiPoint',
+        coordinates: nextCoordinates,
+      },
+    })
+
+    return await ctx.db.get(args.eventId)
+  },
+})
