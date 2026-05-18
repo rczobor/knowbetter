@@ -9,12 +9,10 @@ export default defineSchema({
       type: v.literal('Point'),
       coordinates: v.array(v.number()),
     }),
-    walkingTraces: v.array(
-      v.object({
-        type: v.literal('Point'),
-        coordinates: v.array(v.number()),
-      }),
-    )
+    walkingTraces: v.object({
+      type: v.literal('MultiPoint'),
+      coordinates: v.array(v.array(v.number())),
+    }),
   }).index('by_addressId', ['addressId']),
 
   address: defineTable({
