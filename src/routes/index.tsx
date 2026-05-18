@@ -10,15 +10,17 @@ const MAPBOX_ACCESS_TOKEN = (import.meta as any).env.VITE_MAPBOX_ACCESS_TOKEN
 
 function Home() {
   return (
-    <Map
-      mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
-      initialViewState={{
-        longitude: 19.076422156938513,
-        latitude: 47.55561160380166,
-        zoom: 14,
-      }}
-      style={{ height: '100%', width: '100%', position: 'relative' }}
-      mapStyle="mapbox://styles/robertczobor/clnu2vyeo00n801qw3eyz5fm3"
-    />
+    <div className="h-dvh w-screen overflow-hidden">
+      <Map
+        mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
+        initialViewState={{
+          longitude: 19.076422156938513,
+          latitude: 47.55561160380166,
+          zoom: 14,
+        }}
+        style={{ height: '100%', width: '100%', position: 'relative' }}
+        mapStyle="mapbox://styles/robertczobor/clnu2vyeo00n801qw3eyz5fm3"
+      />
+    </div>
   )
 }
