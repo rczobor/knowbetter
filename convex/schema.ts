@@ -9,6 +9,12 @@ export default defineSchema({
       type: v.literal('Point'),
       coordinates: v.array(v.number()),
     }),
+    entrancePoint: v.optional(
+      v.object({
+        type: v.literal('Point'),
+        coordinates: v.array(v.number()),
+      }),
+    ),
     walkingTraces: v.object({
       type: v.literal('MultiPoint'),
       coordinates: v.array(v.array(v.number())),
