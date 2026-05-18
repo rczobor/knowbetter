@@ -10,17 +10,9 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 import { Toaster } from '../components/ui/sonner'
 import ConvexProvider from '../integrations/convex/provider'
 
-import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
-
 import appCss from '../styles.css?url'
 
-import type { QueryClient } from '@tanstack/react-query'
-
-interface MyRouterContext {
-  queryClient: QueryClient
-}
-
-export const Route = createRootRouteWithContext<MyRouterContext>()({
+export const Route = createRootRouteWithContext()({
   head: () => ({
     meta: [
       {
@@ -84,7 +76,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                 name: 'Tanstack Router',
                 render: <TanStackRouterDevtoolsPanel />,
               },
-              TanStackQueryDevtools,
             ]}
           />
         </ConvexProvider>

@@ -121,7 +121,7 @@ bun --bun run check
 
 - `src/routes`: TanStack Router routes and route-local helpers.
 - `src/components`: Shared UI components.
-- `src/integrations`: Convex and TanStack Query providers.
+- `src/integrations`: Convex provider and other app integrations.
 - `convex`: Convex schema, queries, and mutations.
 - `convex/_generated`: Convex generated files.
 
