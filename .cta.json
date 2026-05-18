@@ -1,0 +1,27 @@
+{
+  "projectName": "knowbetter",
+  "mode": "file-router",
+  "typescript": true,
+  "packageManager": "bun",
+  "includeExamples": false,
+  "tailwind": true,
+  "addOnOptions": {},
+  "envVarValues": {
+    "CONVEX_DEPLOYMENT": "knowbetter",
+    "VITE_CONVEX_URL": "https://vivid-sturgeon-975.eu-west-1.convex.cloud"
+  },
+  "git": true,
+  "install": true,
+  "routerOnly": false,
+  "version": 1,
+  "framework": "react",
+  "chosenAddOns": [
+    "eslint",
+    "nitro",
+    "convex",
+    "shadcn",
+    "t3env",
+    "tanstack-query",
+    "compiler"
+  ]
+}
