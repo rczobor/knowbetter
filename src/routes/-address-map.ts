@@ -66,6 +66,14 @@ export type UserLocationPoint =
   | null
   | undefined
 
+export type MapCenterPoint =
+  | {
+      lng: number
+      lat: number
+    }
+  | null
+  | undefined
+
 export type MarkerViewportTarget =
   | {
       type: 'fitBounds'
@@ -133,6 +141,16 @@ export function getAddressMarkers(
   ].filter((marker): marker is AddressMarker => marker !== null)
 }
 
+export function getAddressParkingMarker(
+  address: AddressWithPoints,
+): AddressMarker | null {
+  if (!address) {
+    return null
+  }
+
+  return pointToMarker('parking', 'Parking point', address.parkingPoint)
+}
+
 export function getUserLocationMarker(
   userLocation: UserLocationPoint,
 ): AddressMarker | null {
@@ -149,6 +167,46 @@ export function getUserLocationMarker(
     label: 'Your current location',
     longitude: userLocation.longitude,
     latitude: userLocation.latitude,
+  }
+}
+
+export function getParkingFlowMarkers(
+  address: AddressWithPoints,
+  userLocation: UserLocationPoint,
+): Array<AddressMarker> {
+  return [
+    getAddressParkingMarker(address),
+    getUserLocationMarker(userLocation),
+  ].filter((marker): marker is AddressMarker => marker !== null)
+}
+
+export function getPointFromViewportPoint(
+  point: UserLocationPoint,
+): AddressPoint | null {
+  if (
+    !point ||
+    !Number.isFinite(point.longitude) ||
+    !Number.isFinite(point.latitude)
+  ) {
+    return null
+  }
+
+  return {
+    type: 'Point',
+    coordinates: [point.longitude, point.latitude],
+  }
+}
+
+export function getPointFromMapCenter(
+  center: MapCenterPoint,
+): AddressPoint | null {
+  if (!center || !Number.isFinite(center.lng) || !Number.isFinite(center.lat)) {
+    return null
+  }
+
+  return {
+    type: 'Point',
+    coordinates: [center.lng, center.lat],
   }
 }
 
@@ -228,6 +286,31 @@ export function getEventPointFeatureCollection(
         ),
       ].filter((feature): feature is EventPointFeature => feature !== null),
     ),
+  }
+}
+
+export function getEventParkingPointFeatureCollection(
+  events: Array<EventWithPoints> | null | undefined,
+): EventPointFeatureCollection {
+  if (!events) {
+    return {
+      type: 'FeatureCollection',
+      features: [],
+    }
+  }
+
+  return {
+    type: 'FeatureCollection',
+    features: events
+      .map((event, eventIndex) =>
+        eventPointToFeature(
+          event,
+          eventIndex,
+          'eventParking',
+          event?.parkingPoint,
+        ),
+      )
+      .filter((feature): feature is EventPointFeature => feature !== null),
   }
 }
 

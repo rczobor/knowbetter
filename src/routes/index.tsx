@@ -5,10 +5,7 @@ import Map, { Marker } from 'react-map-gl/mapbox'
 import type { MapRef } from 'react-map-gl/mapbox'
 // If using with mapbox-gl v1:
 // import Map from 'react-map-gl/mapbox-legacy';
-import {
-  getMarkerViewportTarget,
-  getUserLocationMarker,
-} from './-address-map'
+import { getMarkerViewportTarget, getUserLocationMarker } from './-address-map'
 import type { AddressMarker } from './-address-map'
 import { useUserLocation } from './-user-location'
 
@@ -26,7 +23,8 @@ const INITIAL_VIEW_STATE = {
 function Home() {
   const mapRef = useRef<MapRef | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
-  const userLocation = useUserLocation()
+  const userLocationState = useUserLocation()
+  const userLocation = userLocationState.location
   const userLocationMarker = useMemo(
     () => getUserLocationMarker(userLocation),
     [userLocation],

@@ -14,8 +14,13 @@ describe('Home route map layout', () => {
   it('uses the shared current location hook and renders the user location marker', () => {
     const source = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
 
-    expect(source).toContain("import { useUserLocation } from './-user-location'")
+    expect(source).toContain(
+      "import { useUserLocation } from './-user-location'",
+    )
+    expect(source).toContain('const userLocation = userLocationState.location')
     expect(source).toContain('getUserLocationMarker(userLocation)')
-    expect(source).toContain('<UserLocationMarker marker={userLocationMarker} />')
+    expect(source).toContain(
+      '<UserLocationMarker marker={userLocationMarker} />',
+    )
   })
 })

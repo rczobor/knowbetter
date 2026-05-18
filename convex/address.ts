@@ -11,6 +11,16 @@ const multiPointValidator = v.object({
   coordinates: v.array(v.array(v.number())),
 })
 
+type Point = {
+  type: 'Point'
+  coordinates: Array<number>
+}
+
+type MultiPoint = {
+  type: 'MultiPoint'
+  coordinates: Array<Array<number>>
+}
+
 export const getAddressByAddressId = query({
   args: {
     addressId: v.string(),
@@ -30,24 +40,33 @@ export const updateAddressByAddressId = mutation({
     entrancePoint: v.optional(pointValidator),
   },
   handler: async (ctx, args) => {
+    const addressPatch: {
+      parkingPoint?: Point
+      entrancePoint?: Point
+    } = {}
+
+    if (args.parkingPoint !== undefined) {
+      addressPatch.parkingPoint = args.parkingPoint
+    }
+
+    if (args.entrancePoint !== undefined) {
+      addressPatch.entrancePoint = args.entrancePoint
+    }
+
     const existingAddress = await ctx.db
       .query('address')
       .withIndex('by_addressId', (q) => q.eq('addressId', args.addressId))
       .unique()
 
     if (existingAddress) {
-      await ctx.db.patch(existingAddress._id, {
-        parkingPoint: args.parkingPoint,
-        entrancePoint: args.entrancePoint,
-      })
+      await ctx.db.patch(existingAddress._id, addressPatch)
 
       return await ctx.db.get(existingAddress._id)
     }
 
     const addressId = await ctx.db.insert('address', {
       addressId: args.addressId,
-      parkingPoint: args.parkingPoint,
-      entrancePoint: args.entrancePoint,
+      ...addressPatch,
     })
 
     return await ctx.db.get(addressId)
@@ -63,12 +82,28 @@ export const addEventForAddressId = mutation({
     walkingTraces: v.optional(multiPointValidator),
   },
   handler: async (ctx, args) => {
+    const event: {
+      parkingPoint?: Point
+      entrancePoint?: Point
+      walkingTraces?: MultiPoint
+    } = {}
+
+    if (args.parkingPoint !== undefined) {
+      event.parkingPoint = args.parkingPoint
+    }
+
+    if (args.entrancePoint !== undefined) {
+      event.entrancePoint = args.entrancePoint
+    }
+
+    if (args.walkingTraces !== undefined) {
+      event.walkingTraces = args.walkingTraces
+    }
+
     const eventId = await ctx.db.insert('events', {
       addressId: args.addressId,
       date: args.date,
-      parkingPoint: args.parkingPoint,
-      entrancePoint: args.entrancePoint,
-      walkingTraces: args.walkingTraces,
+      ...event,
     })
 
     return await ctx.db.get(eventId)

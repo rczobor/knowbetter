@@ -1,18 +1,27 @@
 import { createFileRoute, getRouteApi } from '@tanstack/react-router'
-import { useQuery } from 'convex/react'
+import { useMutation, useQuery } from 'convex/react'
 import { DoorOpen, LocateFixed, SquareParking } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Map, { Layer, Marker, Source } from 'react-map-gl/mapbox'
 import type { LayerProps, MapRef } from 'react-map-gl/mapbox'
 import { toast } from 'sonner'
 
+import { Button } from '../components/ui/button'
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '../components/ui/drawer'
 import { api } from '../../convex/_generated/api'
 import {
-  getAddressMarkers,
-  getEventPointFeatureCollection,
-  getEventPointMarkers,
+  getEventParkingPointFeatureCollection,
   getMarkerViewportTarget,
-  getUserLocationMarker,
+  getParkingFlowMarkers,
+  getPointFromMapCenter,
+  getPointFromViewportPoint,
 } from './-address-map'
 import type { AddressMarker, EventPointFeatureCollection } from './-address-map'
 import { useUserLocation } from './-user-location'
@@ -32,8 +41,6 @@ const INITIAL_VIEW_STATE = {
   latitude: 47.55561160380166,
   zoom: 14,
 }
-const PARKING_COLOR = '#2563eb'
-const ENTRANCE_COLOR = '#f97316'
 
 const MARKER_CLASS_NAMES: Record<AddressMarker['id'], string> = {
   parking:
@@ -44,82 +51,41 @@ const MARKER_CLASS_NAMES: Record<AddressMarker['id'], string> = {
     'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-zinc-950 text-white shadow-lg shadow-black/25',
 }
 
-const HISTORICAL_EVENT_CLUSTERS_LAYER: LayerProps = {
-  id: 'historical-event-clusters',
-  type: 'circle',
-  filter: ['has', 'point_count'],
-  paint: {
-    'circle-color': [
-      'case',
-      ['>=', ['get', 'eventParkingCount'], ['get', 'eventEntranceCount']],
-      PARKING_COLOR,
-      ENTRANCE_COLOR,
-    ],
-    'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 25, 24],
-    'circle-stroke-color': '#ffffff',
-    'circle-stroke-width': 2,
-  },
-}
-
-const HISTORICAL_EVENT_CLUSTER_COUNT_LAYER: LayerProps = {
-  id: 'historical-event-cluster-count',
-  type: 'symbol',
-  filter: ['has', 'point_count'],
-  layout: {
-    'text-field': ['get', 'point_count_abbreviated'],
-    'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-    'text-size': 12,
-  },
-  paint: {
-    'text-color': '#ffffff',
-  },
-}
-
-const HISTORICAL_EVENT_PARKING_POINTS_LAYER: LayerProps = {
+const EVENT_PARKING_POINTS_LAYER: LayerProps = {
   id: 'historical-event-parking-points',
   type: 'circle',
-  filter: [
-    'all',
-    ['!', ['has', 'point_count']],
-    ['==', ['get', 'kind'], 'eventParking'],
-  ],
   paint: {
-    'circle-color': PARKING_COLOR,
+    'circle-color': '#2563eb',
     'circle-radius': 6,
     'circle-stroke-color': '#ffffff',
     'circle-stroke-width': 2,
   },
 }
 
-const HISTORICAL_EVENT_ENTRANCE_POINTS_LAYER: LayerProps = {
-  id: 'historical-event-entrance-points',
-  type: 'circle',
-  filter: [
-    'all',
-    ['!', ['has', 'point_count']],
-    ['==', ['get', 'kind'], 'eventEntrance'],
-  ],
-  paint: {
-    'circle-color': ENTRANCE_COLOR,
-    'circle-radius': 6,
-    'circle-stroke-color': '#ffffff',
-    'circle-stroke-width': 2,
-  },
-}
+type ParkingFlowStep =
+  | 'arrive'
+  | 'reviewParking'
+  | 'adjustParking'
+  | 'readyForEntrance'
 
 function AddressMap() {
   const { addressId } = addressRoute.useParams()
   const mapRef = useRef<MapRef | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
+  const [parkingFlowStep, setParkingFlowStep] =
+    useState<ParkingFlowStep>('arrive')
+  const [isSavingParkingFlow, setIsSavingParkingFlow] = useState(false)
   const address = useQuery(api.address.getAddressByAddressId, { addressId })
   const events = useQuery(api.address.getEventsByAddressId, { addressId })
-  const userLocation = useUserLocation()
-  const addressMarkers = getAddressMarkers(address)
-  const eventPointFeatureCollection = getEventPointFeatureCollection(events)
-  const userLocationMarker = getUserLocationMarker(userLocation)
-  const markers = userLocationMarker
-    ? [...addressMarkers, userLocationMarker]
-    : addressMarkers
+  const addEventForAddressId = useMutation(api.address.addEventForAddressId)
+  const updateAddressByAddressId = useMutation(
+    api.address.updateAddressByAddressId,
+  )
+  const userLocationState = useUserLocation()
+  const userLocation = userLocationState.location
+  const markers = getParkingFlowMarkers(address, userLocation)
+  const eventParkingPointFeatureCollection =
+    getEventParkingPointFeatureCollection(events)
 
   useEffect(() => {
     if (address !== null) {
@@ -134,19 +100,16 @@ function AddressMap() {
 
   useEffect(() => {
     const map = mapRef.current
-    const currentAddressMarkers = getAddressMarkers(address)
-    const currentEventPointMarkers = getEventPointMarkers(events)
-    const currentUserLocationMarker = getUserLocationMarker(userLocation)
-    const currentMarkers = currentUserLocationMarker
-      ? [
-          ...currentAddressMarkers,
-          ...currentEventPointMarkers,
-          currentUserLocationMarker,
-        ]
-      : [...currentAddressMarkers, ...currentEventPointMarkers]
-    const viewportTarget = getMarkerViewportTarget(currentMarkers)
+    const viewportTarget = getMarkerViewportTarget(
+      getParkingFlowMarkers(address, userLocation),
+    )
 
-    if (!mapLoaded || !map || !viewportTarget) {
+    if (
+      parkingFlowStep === 'adjustParking' ||
+      !mapLoaded ||
+      !map ||
+      !viewportTarget
+    ) {
       return
     }
 
@@ -164,10 +127,86 @@ function AddressMap() {
       zoom: viewportTarget.zoom,
       duration: 600,
     })
-  }, [address, events, mapLoaded, userLocation])
+  }, [address, mapLoaded, parkingFlowStep, userLocation])
+
+  useEffect(() => {
+    const map = mapRef.current
+
+    if (parkingFlowStep !== 'adjustParking' || !mapLoaded || !map) {
+      return
+    }
+
+    if (!userLocation) {
+      return
+    }
+
+    map.flyTo({
+      center: [userLocation.longitude, userLocation.latitude],
+      zoom: 18,
+      duration: 400,
+    })
+  }, [mapLoaded, parkingFlowStep, userLocation])
+
+  async function handleArrived() {
+    const arrivedParkingPoint = getPointFromViewportPoint(userLocation)
+
+    if (!arrivedParkingPoint) {
+      toast.error('Location unavailable', {
+        description: 'Wait for your current location before arriving.',
+      })
+      return
+    }
+
+    setIsSavingParkingFlow(true)
+
+    try {
+      await addEventForAddressId({
+        addressId,
+        date: new Date().toISOString(),
+        parkingPoint: arrivedParkingPoint,
+      })
+      setParkingFlowStep('reviewParking')
+    } catch {
+      toast.error('Could not create arrival event')
+    } finally {
+      setIsSavingParkingFlow(false)
+    }
+  }
+
+  async function handleSaveCorrectedParking() {
+    const map = mapRef.current
+
+    if (!map) {
+      toast.error('Map unavailable')
+      return
+    }
+
+    const correctedParkingPoint = getPointFromMapCenter(map.getCenter())
+
+    if (!correctedParkingPoint) {
+      toast.error('Parking point unavailable', {
+        description: 'Move the map and try saving again.',
+      })
+      return
+    }
+
+    setIsSavingParkingFlow(true)
+
+    try {
+      await updateAddressByAddressId({
+        addressId,
+        parkingPoint: correctedParkingPoint,
+      })
+      setParkingFlowStep('readyForEntrance')
+    } catch {
+      toast.error('Could not update parking point')
+    } finally {
+      setIsSavingParkingFlow(false)
+    }
+  }
 
   return (
-    <div className="h-dvh w-screen overflow-hidden">
+    <div className="relative h-dvh w-screen overflow-hidden">
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
@@ -176,47 +215,164 @@ function AddressMap() {
         mapStyle={MAP_STYLE}
         onLoad={() => setMapLoaded(true)}
       >
-        <HistoricalEventLayers
-          eventPointFeatureCollection={eventPointFeatureCollection}
-        />
+        {parkingFlowStep === 'adjustParking' ? (
+          <EventParkingPointLayer
+            eventParkingPointFeatureCollection={
+              eventParkingPointFeatureCollection
+            }
+          />
+        ) : null}
         {markers.map((marker) => (
           <AddressMapMarker key={marker.id} marker={marker} />
         ))}
       </Map>
+      {parkingFlowStep === 'adjustParking' ? <CenterParkingPin /> : null}
+      <ParkingArrivalDrawer
+        step={parkingFlowStep}
+        locationStatus={userLocationState.status}
+        isSaving={isSavingParkingFlow}
+        onArrived={handleArrived}
+        onAcceptParking={() => setParkingFlowStep('readyForEntrance')}
+        onAdjustParking={() => setParkingFlowStep('adjustParking')}
+        onSaveCorrectedParking={handleSaveCorrectedParking}
+      />
     </div>
   )
 }
 
-function HistoricalEventLayers({
-  eventPointFeatureCollection,
+function EventParkingPointLayer({
+  eventParkingPointFeatureCollection,
 }: {
-  eventPointFeatureCollection: EventPointFeatureCollection
+  eventParkingPointFeatureCollection: EventPointFeatureCollection
 }) {
   return (
     <Source
-      id="historical-events"
+      id="historical-event-parking-points"
       type="geojson"
-      data={eventPointFeatureCollection}
-      cluster
-      clusterMaxZoom={16}
-      clusterRadius={40}
-      clusterProperties={{
-        eventParkingCount: [
-          '+',
-          ['case', ['==', ['get', 'kind'], 'eventParking'], 1, 0],
-        ],
-        eventEntranceCount: [
-          '+',
-          ['case', ['==', ['get', 'kind'], 'eventEntrance'], 1, 0],
-        ],
-      }}
+      data={eventParkingPointFeatureCollection}
     >
-      <Layer {...HISTORICAL_EVENT_CLUSTERS_LAYER} />
-      <Layer {...HISTORICAL_EVENT_CLUSTER_COUNT_LAYER} />
-      <Layer {...HISTORICAL_EVENT_PARKING_POINTS_LAYER} />
-      <Layer {...HISTORICAL_EVENT_ENTRANCE_POINTS_LAYER} />
+      <Layer {...EVENT_PARKING_POINTS_LAYER} />
     </Source>
   )
+}
+
+function CenterParkingPin() {
+  return (
+    <div
+      className="pointer-events-none absolute top-1/2 left-1/2 z-20 flex -translate-x-1/2 -translate-y-full flex-col items-center"
+      aria-hidden="true"
+    >
+      <div className="mb-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-lg shadow-black/20">
+        Parking point
+      </div>
+      <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-white shadow-lg shadow-black/25">
+        <SquareParking className="h-5 w-5" />
+      </div>
+      <div className="h-4 w-1 rounded-b-full bg-blue-600 shadow-lg shadow-black/20" />
+    </div>
+  )
+}
+
+function ParkingArrivalDrawer({
+  step,
+  locationStatus,
+  isSaving,
+  onArrived,
+  onAcceptParking,
+  onAdjustParking,
+  onSaveCorrectedParking,
+}: {
+  step: ParkingFlowStep
+  locationStatus: string
+  isSaving: boolean
+  onArrived: () => void
+  onAcceptParking: () => void
+  onAdjustParking: () => void
+  onSaveCorrectedParking: () => void
+}) {
+  const canArrive = locationStatus === 'available' && !isSaving
+
+  return (
+    <Drawer open modal={false} dismissible={false}>
+      <DrawerContent showOverlay={false} className="z-30 border-white/10">
+        <DrawerHeader className="text-left">
+          <DrawerTitle>{parkingFlowTitle(step)}</DrawerTitle>
+          <DrawerDescription>
+            {parkingFlowDescription(step, locationStatus)}
+          </DrawerDescription>
+        </DrawerHeader>
+        <DrawerFooter>
+          {step === 'arrive' ? (
+            <Button size="lg" disabled={!canArrive} onClick={onArrived}>
+              {isSaving ? 'Saving arrival...' : 'I have arrived'}
+            </Button>
+          ) : null}
+          {step === 'reviewParking' ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={onAdjustParking}>
+                Adjust point
+              </Button>
+              <Button onClick={onAcceptParking}>Looks accurate</Button>
+            </div>
+          ) : null}
+          {step === 'adjustParking' ? (
+            <Button
+              size="lg"
+              disabled={isSaving}
+              onClick={onSaveCorrectedParking}
+            >
+              {isSaving ? 'Saving parking...' : 'Save parking point'}
+            </Button>
+          ) : null}
+          {step === 'readyForEntrance' ? (
+            <Button size="lg" disabled>
+              Continue to entrance next
+            </Button>
+          ) : null}
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+  )
+}
+
+function parkingFlowTitle(step: ParkingFlowStep) {
+  if (step === 'reviewParking') {
+    return 'Parking point saved'
+  }
+
+  if (step === 'adjustParking') {
+    return 'Set parking point'
+  }
+
+  if (step === 'readyForEntrance') {
+    return 'Ready for entrance'
+  }
+
+  return 'Arrive at address'
+}
+
+function parkingFlowDescription(step: ParkingFlowStep, locationStatus: string) {
+  if (step === 'reviewParking') {
+    return 'Was this parking point accurate?'
+  }
+
+  if (step === 'adjustParking') {
+    return 'Place the parking point at the center of the map.'
+  }
+
+  if (step === 'readyForEntrance') {
+    return 'The walking-to-door step comes next.'
+  }
+
+  if (locationStatus === 'available') {
+    return 'Use your current location as the arrival parking point.'
+  }
+
+  if (locationStatus === 'error' || locationStatus === 'unsupported') {
+    return 'Current location is unavailable.'
+  }
+
+  return 'Waiting for current location.'
 }
 
 function AddressMapMarker({ marker }: { marker: AddressMarker }) {

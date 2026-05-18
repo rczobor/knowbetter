@@ -5,34 +5,72 @@ export type UserLocation = {
   latitude: number
 }
 
-export function useUserLocation(): UserLocation | null {
-  const [userLocation, setUserLocation] = useState<UserLocation | null>(null)
+export type UserLocationStatus =
+  | 'loading'
+  | 'available'
+  | 'error'
+  | 'unsupported'
+
+export type UserLocationState = {
+  status: UserLocationStatus
+  location: UserLocation | null
+  errorMessage?: string
+}
+
+export function useUserLocation(): UserLocationState {
+  const [userLocationState, setUserLocationState] = useState<UserLocationState>(
+    {
+      status: 'loading',
+      location: null,
+    },
+  )
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) {
+      setUserLocationState({
+        status: 'unsupported',
+        location: null,
+        errorMessage: 'Location is not available in this browser.',
+      })
       return
     }
 
     let active = true
 
-    navigator.geolocation.getCurrentPosition((position) => {
-      const { longitude, latitude } = position.coords
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { longitude, latitude } = position.coords
 
-      if (
-        !active ||
-        !Number.isFinite(longitude) ||
-        !Number.isFinite(latitude)
-      ) {
-        return
-      }
+        if (
+          !active ||
+          !Number.isFinite(longitude) ||
+          !Number.isFinite(latitude)
+        ) {
+          return
+        }
 
-      setUserLocation({ longitude, latitude })
-    })
+        setUserLocationState({
+          status: 'available',
+          location: { longitude, latitude },
+        })
+      },
+      (error) => {
+        if (!active) {
+          return
+        }
+
+        setUserLocationState({
+          status: 'error',
+          location: null,
+          errorMessage: error.message,
+        })
+      },
+    )
 
     return () => {
       active = false
     }
   }, [])
 
-  return userLocation
+  return userLocationState
 }

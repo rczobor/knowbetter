@@ -47,60 +47,74 @@ describe('Address map missing address toast', () => {
     expect(source).toContain(
       "import { useUserLocation } from './-user-location'",
     )
-    expect(source).toContain('getUserLocationMarker(userLocation)')
+    expect(source).toContain('const userLocation = userLocationState.location')
+    expect(source).toContain('getParkingFlowMarkers(address, userLocation)')
     expect(source).toContain(
       '<AddressMapMarker key={marker.id} marker={marker} />',
     )
   })
 
-  it('queries historical events for the address route', () => {
+  it('uses a bottom drawer for the parking arrival flow', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain("from '../components/ui/drawer'")
+    expect(source).toContain('<Drawer open')
+    expect(source).toContain('<DrawerContent')
+    expect(source).toContain('ParkingFlowStep')
+  })
+
+  it('keeps the parking arrival drawer open until the flow advances', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('<Drawer open modal={false} dismissible={false}>')
+    expect(source).not.toContain('onOpenChange')
+  })
+
+  it('creates an event from current location when the driver arrives', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('useMutation(api.address.addEventForAddressId)')
+    expect(source).toContain('parkingPoint: arrivedParkingPoint')
+    expect(source).toContain('date: new Date().toISOString()')
+    expect(source).not.toContain('walkingTraces:')
+    expect(source).not.toContain('entrancePoint:')
+  })
+
+  it('updates only the address parking point when corrected', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('api.address.updateAddressByAddressId')
+    expect(source).toContain('parkingPoint: correctedParkingPoint')
+    expect(source).not.toContain('updateEvent')
+  })
+
+  it('shows historical event parking points only during center-pin adjustment', () => {
     const source = readFileSync(
       new URL('./address.$addressId.tsx', import.meta.url),
       'utf8',
     )
 
     expect(source).toContain('api.address.getEventsByAddressId')
-  })
-
-  it('renders historical event coordinates with clustered Mapbox layers', () => {
-    const source = readFileSync(
-      new URL('./address.$addressId.tsx', import.meta.url),
-      'utf8',
-    )
-
-    expect(source).toContain('<Source')
-    expect(source).toContain('cluster')
-    expect(source).toContain('historical-event-clusters')
-    expect(source).toContain('historical-event-cluster-count')
+    expect(source).toContain('getEventParkingPointFeatureCollection(events)')
+    expect(source).toContain("parkingFlowStep === 'adjustParking' ? (")
+    expect(source).toContain('<EventParkingPointLayer')
     expect(source).toContain('historical-event-parking-points')
-    expect(source).toContain('historical-event-entrance-points')
-  })
-
-  it('uses matching blue and orange colors for address and event points', () => {
-    const source = readFileSync(
-      new URL('./address.$addressId.tsx', import.meta.url),
-      'utf8',
-    )
-
-    expect(source).toContain('bg-blue-600')
-    expect(source).toContain('bg-orange-500')
-    expect(source).toContain("const PARKING_COLOR = '#2563eb'")
-    expect(source).toContain("const ENTRANCE_COLOR = '#f97316'")
-    expect(source).toContain("'circle-color': PARKING_COLOR")
-    expect(source).toContain("'circle-color': ENTRANCE_COLOR")
-    expect(source).not.toContain('bg-emerald-600')
-    expect(source).not.toContain("'circle-color': '#a855f7'")
-  })
-
-  it('colors historical clusters from the dominant event point kind', () => {
-    const source = readFileSync(
-      new URL('./address.$addressId.tsx', import.meta.url),
-      'utf8',
-    )
-
-    expect(source).toContain('clusterProperties')
-    expect(source).toContain('eventParkingCount')
-    expect(source).toContain('eventEntranceCount')
-    expect(source).toContain("['>=', ['get', 'eventParkingCount']")
+    expect(source).toContain('getPointFromMapCenter(map.getCenter())')
+    expect(source).toContain('CenterParkingPin')
+    expect(source).toContain('getParkingFlowMarkers')
+    expect(source).not.toContain('HistoricalEventLayers')
+    expect(source).not.toContain('historical-event-entrance-points')
   })
 })

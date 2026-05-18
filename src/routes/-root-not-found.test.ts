@@ -10,4 +10,13 @@ describe('Root route not-found handling', () => {
 
     expect(source).toContain('notFoundComponent:')
   })
+
+  it('sets the document title to the app name', () => {
+    const source = readFileSync(
+      new URL('./__root.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain("title: 'knowbetter'")
+  })
 })
