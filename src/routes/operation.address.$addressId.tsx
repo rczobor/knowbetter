@@ -26,7 +26,9 @@ import MapImages from '@/components/map-image'
 import RouteArrowHeadLayer from '@/components/ui/route-arrow-head-layer'
 import bbox from '@turf/bbox'
 
-export const Route = createFileRoute('/operation/address/$addressId')({ component: Address })
+export const Route = createFileRoute('/operation/address/$addressId')({
+  component: Address,
+})
 
 const routeApi = getRouteApi('/operation/address/$addressId')
 
@@ -36,14 +38,14 @@ const CENTER = { lng: 19.07744443713043, lat: 47.55396193398739 }
 function LayersTrigger() {
   const { toggleSidebar } = useSidebar()
   return (
-      <Button
-        className="shadow-md p-2 absolute right-4 top-4 z-50"
-        size="icon-lg"
-        variant="secondary"
-        onClick={toggleSidebar}
-      >
-        <Layers className="size-6" />
-      </Button>
+    <Button
+      className="shadow-md p-2 absolute right-4 top-4 z-50"
+      size="icon-lg"
+      variant="secondary"
+      onClick={toggleSidebar}
+    >
+      <Layers className="size-6" />
+    </Button>
   )
 }
 
@@ -127,10 +129,11 @@ function Address() {
 
   const mapRef = useRef<MapRef | null>(null)
   const address = useQuery(api.address.getAddressByAddressId, { addressId })
-  const addressMarkers = getAddressMarkers(address).filter(
-    (m) => (m.id === 'parking' ? showParking : showEntrance),
+  const addressMarkers = getAddressMarkers(address).filter((m) =>
+    m.id === 'parking' ? showParking : showEntrance,
   )
-  const { geojson, layer, endpointsGeojson, endpointsLayer } = useWalkingTracesLayer(addressId, showWalkingTraces)
+  const { geojson, layer, endpointsGeojson, endpointsLayer } =
+    useWalkingTracesLayer(addressId, showWalkingTraces)
 
   useEffect(() => {
     const map = mapRef.current
@@ -145,7 +148,7 @@ function Address() {
       ],
       {
         padding: 80,
-        maxZoom: 19,
+        maxZoom: 18,
         duration: 600,
       },
     )
@@ -179,7 +182,11 @@ function Address() {
               color={layer.paint['line-color']}
             />
           </Source>
-          <Source id="walking-traces-endpoints" type="geojson" data={endpointsGeojson}>
+          <Source
+            id="walking-traces-endpoints"
+            type="geojson"
+            data={endpointsGeojson}
+          >
             <Layer {...endpointsLayer} />
           </Source>
         </Map>

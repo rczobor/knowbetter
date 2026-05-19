@@ -9,15 +9,27 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as OperationRouteImport } from './routes/operation'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OperationIndexRouteImport } from './routes/operation.index'
 import { Route as AddressAddressIdRouteImport } from './routes/address.$addressId'
 import { Route as OperationAddressAddressIdRouteImport } from './routes/operation.address.$addressId'
 import { Route as AddressAddressIdEventEventIdRouteImport } from './routes/address.$addressId_.event.$eventId'
 
+const OperationRoute = OperationRouteImport.update({
+  id: '/operation',
+  path: '/operation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const OperationIndexRoute = OperationIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OperationRoute,
 } as any)
 const AddressAddressIdRoute = AddressAddressIdRouteImport.update({
   id: '/address/$addressId',
@@ -26,9 +38,9 @@ const AddressAddressIdRoute = AddressAddressIdRouteImport.update({
 } as any)
 const OperationAddressAddressIdRoute =
   OperationAddressAddressIdRouteImport.update({
-    id: '/operation/address/$addressId',
-    path: '/operation/address/$addressId',
-    getParentRoute: () => rootRouteImport,
+    id: '/address/$addressId',
+    path: '/address/$addressId',
+    getParentRoute: () => OperationRoute,
   } as any)
 const AddressAddressIdEventEventIdRoute =
   AddressAddressIdEventEventIdRouteImport.update({
@@ -39,20 +51,25 @@ const AddressAddressIdEventEventIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/operation': typeof OperationRouteWithChildren
   '/address/$addressId': typeof AddressAddressIdRoute
+  '/operation/': typeof OperationIndexRoute
   '/operation/address/$addressId': typeof OperationAddressAddressIdRoute
   '/address/$addressId/event/$eventId': typeof AddressAddressIdEventEventIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/address/$addressId': typeof AddressAddressIdRoute
+  '/operation': typeof OperationIndexRoute
   '/operation/address/$addressId': typeof OperationAddressAddressIdRoute
   '/address/$addressId/event/$eventId': typeof AddressAddressIdEventEventIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/operation': typeof OperationRouteWithChildren
   '/address/$addressId': typeof AddressAddressIdRoute
+  '/operation/': typeof OperationIndexRoute
   '/operation/address/$addressId': typeof OperationAddressAddressIdRoute
   '/address/$addressId_/event/$eventId': typeof AddressAddressIdEventEventIdRoute
 }
@@ -60,38 +77,57 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/operation'
     | '/address/$addressId'
+    | '/operation/'
     | '/operation/address/$addressId'
     | '/address/$addressId/event/$eventId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/address/$addressId'
+    | '/operation'
     | '/operation/address/$addressId'
     | '/address/$addressId/event/$eventId'
   id:
     | '__root__'
     | '/'
+    | '/operation'
     | '/address/$addressId'
+    | '/operation/'
     | '/operation/address/$addressId'
     | '/address/$addressId_/event/$eventId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  OperationRoute: typeof OperationRouteWithChildren
   AddressAddressIdRoute: typeof AddressAddressIdRoute
-  OperationAddressAddressIdRoute: typeof OperationAddressAddressIdRoute
   AddressAddressIdEventEventIdRoute: typeof AddressAddressIdEventEventIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/operation': {
+      id: '/operation'
+      path: '/operation'
+      fullPath: '/operation'
+      preLoaderRoute: typeof OperationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/operation/': {
+      id: '/operation/'
+      path: '/'
+      fullPath: '/operation/'
+      preLoaderRoute: typeof OperationIndexRouteImport
+      parentRoute: typeof OperationRoute
     }
     '/address/$addressId': {
       id: '/address/$addressId'
@@ -102,10 +138,10 @@ declare module '@tanstack/react-router' {
     }
     '/operation/address/$addressId': {
       id: '/operation/address/$addressId'
-      path: '/operation/address/$addressId'
+      path: '/address/$addressId'
       fullPath: '/operation/address/$addressId'
       preLoaderRoute: typeof OperationAddressAddressIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof OperationRoute
     }
     '/address/$addressId_/event/$eventId': {
       id: '/address/$addressId_/event/$eventId'
@@ -117,10 +153,24 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface OperationRouteChildren {
+  OperationIndexRoute: typeof OperationIndexRoute
+  OperationAddressAddressIdRoute: typeof OperationAddressAddressIdRoute
+}
+
+const OperationRouteChildren: OperationRouteChildren = {
+  OperationIndexRoute: OperationIndexRoute,
+  OperationAddressAddressIdRoute: OperationAddressAddressIdRoute,
+}
+
+const OperationRouteWithChildren = OperationRoute._addFileChildren(
+  OperationRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  OperationRoute: OperationRouteWithChildren,
   AddressAddressIdRoute: AddressAddressIdRoute,
-  OperationAddressAddressIdRoute: OperationAddressAddressIdRoute,
   AddressAddressIdEventEventIdRoute: AddressAddressIdEventEventIdRoute,
 }
 export const routeTree = rootRouteImport

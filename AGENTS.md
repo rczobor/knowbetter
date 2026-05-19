@@ -54,3 +54,4 @@ management and scripts.
 - Client-exposed environment variables must use the `VITE_` prefix.
 - Keep `.env.example` and `src/env.ts` in sync when adding or renaming
   environment variables.
+- Add new files to Git automatically, but do not commit them
