@@ -367,11 +367,31 @@ a {
 }
 
 .native-map-screen {
-  position: relative;
+  position: fixed;
+  inset: 0;
   width: 100vw;
-  height: calc(100dvh + env(safe-area-inset-bottom));
-  margin-bottom: calc(-1 * env(safe-area-inset-bottom));
+  height: 100vh;
+  min-height: 100lvh;
   overflow: hidden;
+  background: #d9e4df;
+}
+
+.native-map-screen > .mapboxgl-map,
+.native-map-screen .mapboxgl-canvas-container,
+.native-map-screen .mapboxgl-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+body:has(.native-map-screen) {
+  background: #d9e4df;
+}
+
+body:has(.native-map-screen)::before,
+body:has(.native-map-screen)::after {
+  content: none;
 }
 
 @layer base {
