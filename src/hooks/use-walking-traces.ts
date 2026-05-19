@@ -6,7 +6,10 @@ import type { LayerProps } from 'react-map-gl/mapbox-legacy'
 const randomizeEventColor = (i: number) =>
   `hsl(${(i * 137.508) % 360}, 70%, 55%)`
 
-export default function useWalkingTracesLayer(addressId: string, showWalkingTraces: boolean) {
+export default function useWalkingTracesLayer(
+  addressId: string,
+  showWalkingTraces: boolean,
+) {
   const events = useQuery(api.address.getEventsByAddressId, { addressId })
 
   const geojson = useMemo(
@@ -14,14 +17,16 @@ export default function useWalkingTracesLayer(addressId: string, showWalkingTrac
       type: 'FeatureCollection' as const,
       features: (events ?? []).flatMap((event, i) => {
         if (!event.walkingTraces) return []
-        return [{
-          type: 'Feature' as const,
-          geometry: {
-            type: 'LineString' as const,
-            coordinates: event.walkingTraces.coordinates,
+        return [
+          {
+            type: 'Feature' as const,
+            geometry: {
+              type: 'LineString' as const,
+              coordinates: event.walkingTraces.coordinates,
+            },
+            properties: { eventIndex: i },
           },
-          properties: { eventIndex: i },
-        }]
+        ]
       }),
     }),
     [events],
@@ -63,8 +68,8 @@ export default function useWalkingTracesLayer(addressId: string, showWalkingTrac
       paint: {
         'line-color': colorExpr as string,
         'line-width': 2,
-        'line-dasharray': [2, 3],
-        'line-opacity': 0.85,
+        'line-dasharray': [0.2, 2.5],
+        'line-opacity': 0.9,
       },
       layout: {
         'line-cap': 'round' as const,
