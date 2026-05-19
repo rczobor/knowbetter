@@ -6,8 +6,8 @@ import {
 import { useMutation, useQuery } from 'convex/react'
 import { DoorOpen, LocateFixed, SquareParking } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import Map, { Layer, Marker, Source } from 'react-map-gl/mapbox'
 import type { LayerProps, MapRef } from 'react-map-gl/mapbox'
+import Map, { Layer, Marker, Source } from 'react-map-gl/mapbox'
 import { toast } from 'sonner'
 
 import type { Id } from '../../convex/_generated/dataModel'
@@ -21,6 +21,13 @@ import {
   DrawerTitle,
 } from '../components/ui/drawer'
 import { api } from '../../convex/_generated/api'
+import type {
+  AddressMarker,
+  AddressMultiPoint,
+  AddressPoint,
+  EventPointFeatureCollection,
+  WalkingEntranceHintFeatureCollection,
+} from './-address-map'
 import {
   getActiveEventFeatureCollections,
   getEventParkingPointFeatureCollection,
@@ -36,16 +43,9 @@ import {
   getWalkingEntranceHintViewportMarkers,
   shouldAppendWalkingTracePoint,
 } from './-address-map'
-import type {
-  AddressMarker,
-  AddressMultiPoint,
-  AddressPoint,
-  EventPointFeatureCollection,
-  WalkingEntranceHintFeatureCollection,
-} from './-address-map'
 import { ActiveEventLayers } from './-active-event-layers'
-import { useUserLocation } from './-user-location'
 import type { UserLocation } from './-user-location'
+import { useUserLocation } from './-user-location'
 
 import 'mapbox-gl/dist/mapbox-gl.css'
 
@@ -795,10 +795,13 @@ function getActiveEventMarkers(
 }
 
 function getAddressPointMarkers(
-  address: {
-    parkingPoint?: AddressPoint
-    entrancePoint?: AddressPoint
-  } | null,
+  address:
+    | {
+        parkingPoint?: AddressPoint
+        entrancePoint?: AddressPoint
+      }
+    | null
+    | undefined,
 ): Array<AddressMarker> {
   if (!address) {
     return []
