@@ -25,6 +25,7 @@ import type { AddressMarker } from './-address-map'
 import { useUserLocation } from './-user-location'
 
 import 'mapbox-gl/dist/mapbox-gl.css'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/')({ component: Home })
 
@@ -45,6 +46,7 @@ function Home() {
   const mapRef = useRef<MapRef | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [addressPanelHeight, setAddressPanelHeight] = useState(0)
+  const [hoveredAddressId, setHoveredAddressId] = useState<string | null>(null)
   const addresses = useQuery(api.address.listAddresses, {})
   const userLocationState = useUserLocation()
   const userLocation = userLocationState.location
@@ -108,12 +110,14 @@ function Home() {
           <HomeAddressPointMarker
             key={`${marker.addressId}-${marker.id}-${marker.longitude}-${marker.latitude}`}
             marker={marker}
+            hovered={marker.addressId === hoveredAddressId}
           />
         ))}
       </Map>
       <AddressListPanel
         addresses={addresses}
         onHeightChange={setAddressPanelHeight}
+        onHoverAddress={setHoveredAddressId}
       />
     </div>
   )
@@ -122,9 +126,11 @@ function Home() {
 function AddressListPanel({
   addresses,
   onHeightChange,
+  onHoverAddress,
 }: {
   addresses: Array<HomeAddress> | undefined
   onHeightChange: (height: number) => void
+  onHoverAddress: (addressId: string | null) => void
 }) {
   const [panelElement, setPanelElement] = useState<HTMLElement | null>(null)
 
@@ -171,7 +177,11 @@ function AddressListPanel({
         ) : (
           <ul className="divide-y divide-zinc-200/80">
             {addresses.map((address) => (
-              <li key={address._id}>
+              <li
+                key={address._id}
+                onMouseEnter={() => onHoverAddress(address.addressId)}
+                onMouseLeave={() => onHoverAddress(null)}
+              >
                 <Link
                   to="/address/$addressId"
                   params={{ addressId: address.addressId }}
@@ -207,7 +217,13 @@ function AddressListPanel({
   )
 }
 
-function HomeAddressPointMarker({ marker }: { marker: HomeAddressMarker }) {
+function HomeAddressPointMarker({
+  marker,
+  hovered,
+}: {
+  marker: HomeAddressMarker
+  hovered: boolean
+}) {
   return (
     <Marker
       longitude={marker.longitude}
@@ -215,11 +231,11 @@ function HomeAddressPointMarker({ marker }: { marker: HomeAddressMarker }) {
       anchor="bottom"
     >
       <div
-        className={
-          marker.id === 'parking'
-            ? 'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-white shadow-lg shadow-black/25'
-            : 'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-orange-500 text-white shadow-lg shadow-black/25'
-        }
+        className={cn(
+          'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-orange-500 text-white shadow-lg shadow-black/25 transition-transform duration-150',
+          marker.id === 'parking' && 'bg-blue-600',
+          hovered && 'scale-125',
+        )}
         aria-label={`${marker.addressId} ${marker.label}`}
       >
         {marker.id === 'parking' ? (
@@ -256,8 +272,8 @@ function getHomeAddressMarkers(
     addresses?.flatMap((address) =>
       getAddressMarkers(address).map((marker) => ({
         ...marker,
-        addressId: address.addressId,
-      })),
-    ) ?? []
+        addressId: address.addressId
+      })))
+     ?? []
   )
 }
