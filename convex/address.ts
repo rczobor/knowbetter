@@ -33,6 +33,15 @@ export const getAddressByAddressId = query({
   },
 })
 
+export const listAddresses = query({
+  args: {},
+  handler: async (ctx) => {
+    const addresses = await ctx.db.query('address').collect()
+
+    return addresses.sort((a, b) => a.addressId.localeCompare(b.addressId))
+  },
+})
+
 export const updateAddressByAddressId = mutation({
   args: {
     addressId: v.string(),

@@ -1,10 +1,14 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { LocateFixed } from 'lucide-react'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { useQuery } from 'convex/react'
+import { ChevronRight, LocateFixed, MapPin } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Map, { Marker } from 'react-map-gl/mapbox'
 import type { MapRef } from 'react-map-gl/mapbox'
 // If using with mapbox-gl v1:
 // import Map from 'react-map-gl/mapbox-legacy';
+import { api } from '../../convex/_generated/api'
+import type { Doc } from '../../convex/_generated/dataModel'
+import { Badge } from '../components/ui/badge'
 import { getMarkerViewportTarget, getUserLocationMarker } from './-address-map'
 import type { AddressMarker } from './-address-map'
 import { useUserLocation } from './-user-location'
@@ -23,6 +27,7 @@ const INITIAL_VIEW_STATE = {
 function Home() {
   const mapRef = useRef<MapRef | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
+  const addresses = useQuery(api.address.listAddresses, {})
   const userLocationState = useUserLocation()
   const userLocation = userLocationState.location
   const userLocationMarker = useMemo(
@@ -70,7 +75,72 @@ function Home() {
           <UserLocationMarker marker={userLocationMarker} />
         ) : null}
       </Map>
+      <AddressListPanel addresses={addresses} />
     </div>
+  )
+}
+
+type HomeAddress = Doc<'address'>
+
+function AddressListPanel({
+  addresses,
+}: {
+  addresses: Array<HomeAddress> | undefined
+}) {
+  return (
+    <section
+      className="absolute inset-x-3 z-30 max-h-[min(20rem,45dvh)] overflow-hidden rounded-lg border border-white/40 bg-white/95 shadow-xl shadow-black/15 backdrop-blur-md"
+      style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+      aria-label="Available addresses"
+    >
+      <div className="border-b border-zinc-200/80 px-4 py-3">
+        <h1 className="text-sm font-semibold text-zinc-950">
+          Available addresses
+        </h1>
+      </div>
+      <div className="max-h-[calc(min(20rem,45dvh)-3rem)] overflow-y-auto">
+        {addresses === undefined ? (
+          <p className="px-4 py-5 text-sm text-zinc-500">
+            Loading addresses...
+          </p>
+        ) : addresses.length === 0 ? (
+          <p className="px-4 py-5 text-sm text-zinc-500">No addresses yet.</p>
+        ) : (
+          <ul className="divide-y divide-zinc-200/80">
+            {addresses.map((address) => (
+              <li key={address._id}>
+                <Link
+                  to="/address/$addressId"
+                  params={{ addressId: address.addressId }}
+                  className="flex min-h-16 items-center gap-3 px-4 py-3 text-left transition hover:bg-zinc-100/80 focus-visible:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/20"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-white">
+                    <MapPin className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-zinc-950">
+                      {address.addressId}
+                    </span>
+                    <span className="mt-1 flex flex-wrap gap-1.5">
+                      {address.parkingPoint ? (
+                        <Badge variant="secondary">Parking</Badge>
+                      ) : null}
+                      {address.entrancePoint ? (
+                        <Badge variant="outline">Entrance</Badge>
+                      ) : null}
+                    </span>
+                  </span>
+                  <ChevronRight
+                    className="h-5 w-5 shrink-0 text-zinc-400"
+                    aria-hidden="true"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
   )
 }
 

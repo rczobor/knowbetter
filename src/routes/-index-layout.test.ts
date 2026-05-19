@@ -53,4 +53,20 @@ describe('Home route map layout', () => {
       '<UserLocationMarker marker={userLocationMarker} />',
     )
   })
+
+  it('lists available Convex addresses and links them to address routes', () => {
+    const source = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
+    const convexSource = readFileSync(
+      new URL('../../convex/address.ts', import.meta.url),
+      'utf8',
+    )
+
+    expect(convexSource).toContain('export const listAddresses = query')
+    expect(convexSource).toContain("ctx.db.query('address').collect()")
+    expect(source).toContain('useQuery(api.address.listAddresses, {})')
+    expect(source).toContain('<AddressListPanel addresses={addresses} />')
+    expect(source).toContain('to="/address/$addressId"')
+    expect(source).toContain('params={{ addressId: address.addressId }}')
+    expect(source).toContain('Available addresses')
+  })
 })
