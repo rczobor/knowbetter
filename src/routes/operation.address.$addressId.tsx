@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { createFileRoute, getRouteApi } from '@tanstack/react-router'
-import type { MapRef } from 'react-map-gl/mapbox'
-import Map, { Layer, Source } from 'react-map-gl/mapbox'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import { Layer, Source, useMap } from 'react-map-gl/mapbox'
 import { Layers } from 'lucide-react'
 import { useQuery } from 'convex/react'
 import { Button } from '@/components/ui/button'
@@ -12,8 +10,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
-  SidebarInset,
-  SidebarProvider,
   useSidebar,
 } from '@/components/ui/sidebar'
 import useWalkingTracesLayer from '@/hooks/use-walking-traces'
@@ -22,18 +18,15 @@ import { Field, FieldContent, FieldLabel } from '@/components/ui/field'
 import { getAddressMarkers } from './-address-map'
 import { AddressMapMarker } from './-address-map-marker'
 import { api } from '../../convex/_generated/api'
-import MapImages from '@/components/map-image'
 import RouteArrowHeadLayer from '@/components/ui/route-arrow-head-layer'
 import bbox from '@turf/bbox'
+import { OperationMapLoadedContext } from './operation'
 
 export const Route = createFileRoute('/operation/address/$addressId')({
   component: Address,
 })
 
 const routeApi = getRouteApi('/operation/address/$addressId')
-
-const MAPBOX_ACCESS_TOKEN = (import.meta as any).env.VITE_MAPBOX_ACCESS_TOKEN
-const CENTER = { lng: 19.07744443713043, lat: 47.55396193398739 }
 
 function LayersTrigger() {
   const { toggleSidebar } = useSidebar()
@@ -127,7 +120,9 @@ function Address() {
   const [showEntrance, setShowEntrance] = useState(true)
   const [hasMoved, setHasMoved] = useState(false)
 
-  const mapRef = useRef<MapRef | null>(null)
+  const mapLoaded = useContext(OperationMapLoadedContext)
+  const { current: map } = useMap()
+
   const address = useQuery(api.address.getAddressByAddressId, { addressId })
   const addressMarkers = getAddressMarkers(address).filter((m) =>
     m.id === 'parking' ? showParking : showEntrance,
@@ -136,63 +131,41 @@ function Address() {
     useWalkingTracesLayer(addressId, showWalkingTraces)
 
   useEffect(() => {
-    const map = mapRef.current
+    if (!map) return
+    const handle = () => setHasMoved(true)
+    map.on('drag', handle)
+    return () => { map.off('drag', handle) }
+  }, [map])
 
-    if (!map || hasMoved) return
+  useEffect(() => {
+    if (!mapLoaded || !map || hasMoved) return
     const [minLng, minLat, maxLng, maxLat] = bbox(geojson)
-
+    if (!isFinite(minLng) || !isFinite(minLat) || !isFinite(maxLng) || !isFinite(maxLat)) return
     map.fitBounds(
-      [
-        [minLng, minLat],
-        [maxLng, maxLat],
-      ],
-      {
-        padding: 80,
-        maxZoom: 18,
-        duration: 600,
-      },
+      [[minLng, minLat], [maxLng, maxLat]],
+      { padding: 150, maxZoom: 18, duration: 600 },
     )
-  }, [mapRef, geojson, hasMoved])
+  }, [map, mapLoaded, geojson, hasMoved])
 
   return (
-    <SidebarProvider defaultOpen={false}>
-      <SidebarInset className="relative overflow-hidden">
-        <Map
-          mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
-          initialViewState={{
-            longitude: CENTER.lng,
-            latitude: CENTER.lat,
-            zoom: 16,
-          }}
-          style={{ height: '100%', width: '100%', position: 'relative' }}
-          mapStyle="mapbox://styles/robertczobor/clnu2vyeo00n801qw3eyz5fm3"
-          ref={mapRef}
-          onDrag={() => setHasMoved(true)}
-        >
-          <MapImages />
+    <>
+      {addressMarkers.map((marker) => (
+        <AddressMapMarker key={marker.id} marker={marker} />
+      ))}
 
-          {addressMarkers.map((marker) => (
-            <AddressMapMarker key={marker.id} marker={marker} />
-          ))}
+      <Source id="walking-traces" type="geojson" data={geojson}>
+        <Layer {...layer} />
+        <RouteArrowHeadLayer id={layer.id} color={layer.paint['line-color']} />
+      </Source>
+      <Source
+        id="walking-traces-endpoints"
+        type="geojson"
+        data={endpointsGeojson}
+      >
+        <Layer {...endpointsLayer} />
+      </Source>
 
-          <Source id="walking-traces" type="geojson" data={geojson}>
-            <Layer {...layer} />
-            <RouteArrowHeadLayer
-              id={layer.id}
-              color={layer.paint['line-color']}
-            />
-          </Source>
-          <Source
-            id="walking-traces-endpoints"
-            type="geojson"
-            data={endpointsGeojson}
-          >
-            <Layer {...endpointsLayer} />
-          </Source>
-        </Map>
-
-        <LayersTrigger />
-      </SidebarInset>
+      <LayersTrigger />
       <LayersSidebar
         showWalkingTraces={showWalkingTraces}
         onToggleWalkingTraces={() => setShowWalkingTraces((v) => !v)}
@@ -201,6 +174,6 @@ function Address() {
         showEntrance={showEntrance}
         onToggleEntrance={() => setShowEntrance((v) => !v)}
       />
-    </SidebarProvider>
+    </>
   )
 }
