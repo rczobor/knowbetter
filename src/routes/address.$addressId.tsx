@@ -1,4 +1,8 @@
-import { createFileRoute, getRouteApi } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  getRouteApi,
+  useNavigate,
+} from '@tanstack/react-router'
 import { useMutation, useQuery } from 'convex/react'
 import { DoorOpen, LocateFixed, SquareParking } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -120,6 +124,7 @@ type ActiveDeliveryEvent = {
 
 function AddressMap() {
   const { addressId } = addressRoute.useParams()
+  const navigate = useNavigate()
   const mapRef = useRef<MapRef | null>(null)
   const latestTraceAppendRef = useRef<{
     point: UserLocation
@@ -468,6 +473,10 @@ function AddressMap() {
     }
   }
 
+  function handleCompleteAddress() {
+    void navigate({ to: '/' })
+  }
+
   return (
     <div className="native-map-screen">
       <Map
@@ -515,6 +524,7 @@ function AddressMap() {
         onAdjustParking={() => setParkingFlowStep('adjustParking')}
         onSaveCorrectedParking={handleSaveCorrectedParking}
         onFinishWalking={handleFinishWalking}
+        onCompleteAddress={handleCompleteAddress}
         canFinishWalking={canFinishWalking}
       />
     </div>
@@ -581,6 +591,7 @@ function ParkingArrivalDrawer({
   onAdjustParking,
   onSaveCorrectedParking,
   onFinishWalking,
+  onCompleteAddress,
   canFinishWalking,
 }: {
   step: ParkingFlowStep
@@ -592,6 +603,7 @@ function ParkingArrivalDrawer({
   onAdjustParking: () => void
   onSaveCorrectedParking: () => void
   onFinishWalking: () => void
+  onCompleteAddress: () => void
   canFinishWalking: boolean
 }) {
   const canArrive = locationStatus === 'available' && !isSaving
@@ -668,8 +680,8 @@ function ParkingArrivalDrawer({
             </Button>
           ) : null}
           {step === 'finishedWalking' ? (
-            <Button size="lg" disabled>
-              Entrance saved
+            <Button size="lg" onClick={onCompleteAddress}>
+              Finish address
             </Button>
           ) : null}
         </DrawerFooter>

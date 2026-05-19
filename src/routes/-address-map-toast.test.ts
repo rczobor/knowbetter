@@ -252,4 +252,19 @@ describe('Address map missing address toast', () => {
     expect(layerSource).toContain('active-event-parking-origin')
     expect(layerSource).toContain('active-event-entrance-destination')
   })
+
+  it('lets the driver finish an address and return to the home route', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('useNavigate')
+    expect(source).toContain("void navigate({ to: '/' })")
+    expect(source).toContain('onCompleteAddress={handleCompleteAddress}')
+    expect(source).toContain('onCompleteAddress: () => void')
+    expect(source).toContain('Finish address')
+    expect(source).not.toContain('<Button size="lg" disabled>')
+    expect(source).not.toContain('Entrance saved')
+  })
 })
