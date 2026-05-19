@@ -65,7 +65,7 @@ const MARKER_CLASS_NAMES: Record<AddressMarker['id'], string> = {
   entrance:
     'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-orange-500 text-white shadow-lg shadow-black/25',
   userLocation:
-    'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-zinc-950 text-white shadow-lg shadow-black/25',
+    'flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-zinc-950 text-white shadow-md shadow-black/25',
 }
 
 const EVENT_PARKING_POINTS_LAYER: LayerProps = {
@@ -163,13 +163,19 @@ function AddressMap() {
     getWalkingEntranceHintFeatureCollection(address, events)
   const walkingEntranceHintViewportMarkers =
     getWalkingEntranceHintViewportMarkers(address, events)
+  const activeEventMarkers = getActiveEventMarkers(currentEvent)
+  const walkingEntranceHintMarkers = getWalkingEntranceHintMarkers(
+    walkingEntranceHintFeatureCollection,
+  )
   const markers =
     parkingFlowStep === 'walkingToEntrance'
-      ? userLocationMarker
-        ? [userLocationMarker]
-        : []
+      ? [
+          ...activeEventMarkers,
+          ...walkingEntranceHintMarkers,
+          ...(userLocationMarker ? [userLocationMarker] : []),
+        ]
       : parkingFlowStep === 'finishedWalking'
-        ? []
+        ? activeEventMarkers
         : getParkingFlowMarkers(address, userLocation)
   const viewportMarkers = isWalkingFlow
     ? [
@@ -494,7 +500,10 @@ function AddressMap() {
           />
         ) : null}
         {markers.map((marker) => (
-          <AddressMapMarker key={marker.id} marker={marker} />
+          <AddressMapMarker
+            key={`${marker.id}-${marker.longitude}-${marker.latitude}`}
+            marker={marker}
+          />
         ))}
       </Map>
       {parkingFlowStep === 'adjustParking' ? <CenterParkingPin /> : null}
@@ -749,5 +758,65 @@ function AddressMapMarkerIcon({ marker }: { marker: AddressMarker }) {
     return <DoorOpen className="h-5 w-5" aria-hidden="true" />
   }
 
-  return <LocateFixed className="h-5 w-5" aria-hidden="true" />
+  return <LocateFixed className="h-4 w-4" aria-hidden="true" />
+}
+
+function getActiveEventMarkers(
+  currentEvent: ActiveDeliveryEvent | null,
+): Array<AddressMarker> {
+  if (!currentEvent) {
+    return []
+  }
+
+  return [
+    getMarkerFromPoint('parking', 'Parking point', currentEvent.parkingPoint),
+    getMarkerFromPoint(
+      'entrance',
+      'Entrance point',
+      currentEvent.entrancePoint,
+    ),
+  ].filter((marker): marker is AddressMarker => marker !== null)
+}
+
+function getWalkingEntranceHintMarkers({
+  features,
+}: WalkingEntranceHintFeatureCollection): Array<AddressMarker> {
+  return features
+    .map((feature): AddressMarker | null => {
+      const [longitude, latitude] = feature.geometry.coordinates
+
+      if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+        return null
+      }
+
+      return {
+        id: 'entrance',
+        label:
+          feature.properties.kind === 'addressEntrance'
+            ? 'Address entrance'
+            : 'Previous entrance',
+        longitude,
+        latitude,
+      }
+    })
+    .filter((marker): marker is AddressMarker => marker !== null)
+}
+
+function getMarkerFromPoint(
+  id: Extract<AddressMarker['id'], 'parking' | 'entrance'>,
+  label: string,
+  point: AddressPoint | undefined,
+): AddressMarker | null {
+  const [longitude, latitude] = point?.coordinates ?? []
+
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+    return null
+  }
+
+  return {
+    id,
+    label,
+    longitude,
+    latitude,
+  }
 }

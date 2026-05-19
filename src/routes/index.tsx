@@ -152,10 +152,10 @@ function UserLocationMarker({ marker }: { marker: AddressMarker }) {
       anchor="center"
     >
       <div
-        className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-zinc-950 text-white shadow-lg shadow-black/25"
+        className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-zinc-950 text-white shadow-md shadow-black/25"
         aria-label={marker.label}
       >
-        <LocateFixed className="h-5 w-5" aria-hidden="true" />
+        <LocateFixed className="h-4 w-4" aria-hidden="true" />
       </div>
     </Marker>
   )

@@ -49,8 +49,29 @@ describe('Address map missing address toast', () => {
     )
     expect(source).toContain('const userLocation = userLocationState.location')
     expect(source).toContain('getParkingFlowMarkers(address, userLocation)')
+    expect(source).toContain('<AddressMapMarker')
+    expect(source).toContain('marker={marker}')
+  })
+
+  it('uses compact user markers and icon markers for parking and entrance points', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+    const homeSource = readFileSync(
+      new URL('./index.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('flex h-7 w-7')
+    expect(homeSource).toContain('flex h-7 w-7')
+    expect(source).toContain('getActiveEventMarkers(currentEvent)')
+    expect(source).toContain('getWalkingEntranceHintMarkers(')
+    expect(source).toContain('<SquareParking className="h-5 w-5"')
+    expect(source).toContain('<DoorOpen className="h-5 w-5"')
+    expect(source).toContain('<LocateFixed className="h-4 w-4"')
     expect(source).toContain(
-      '<AddressMapMarker key={marker.id} marker={marker} />',
+      'key={`${marker.id}-${marker.longitude}-${marker.latitude}`}',
     )
   })
 
