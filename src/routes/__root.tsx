@@ -1,11 +1,9 @@
 import {
+  createRootRouteWithContext,
   HeadContent,
   Link,
   Scripts,
-  createRootRouteWithContext,
 } from '@tanstack/react-router'
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import { Toaster } from '../components/ui/sonner'
 import ConvexProvider from '../integrations/convex/provider'
@@ -101,17 +99,18 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <ConvexProvider>
           {children}
           <Toaster />
-          <TanStackDevtools
-            config={{
-              position: 'bottom-right',
-            }}
-            plugins={[
-              {
-                name: 'Tanstack Router',
-                render: <TanStackRouterDevtoolsPanel />,
-              },
-            ]}
-          />
+          {/*<TanStackDevtools*/}
+          {/*  config={{*/}
+          {/*    position: 'bottom-left',*/}
+          {/*  }}*/}
+          {/*  plugins={[*/}
+          {/*    {*/}
+          {/*      name: 'Tanstack Router',*/}
+          {/*      render: <TanStackRouterDevtoolsPanel />,*/}
+          {/*    },*/}
+          {/*    TanStackQueryDevtools,*/}
+          {/*  ]}*/}
+          {/*/>*/}
         </ConvexProvider>
         <Scripts />
       </body>
