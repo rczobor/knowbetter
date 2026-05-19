@@ -57,7 +57,7 @@ function Home() {
   }, [mapLoaded, userLocationMarker])
 
   return (
-    <div className="h-dvh w-screen overflow-hidden">
+    <div className="native-map-screen">
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_ACCESS_TOKEN}

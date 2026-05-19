@@ -366,6 +366,14 @@ a {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
+.native-map-screen {
+  position: relative;
+  width: 100vw;
+  height: calc(100dvh + env(safe-area-inset-bottom));
+  margin-bottom: calc(-1 * env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

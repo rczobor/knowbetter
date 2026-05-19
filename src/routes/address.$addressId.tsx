@@ -465,7 +465,7 @@ function AddressMap() {
   }
 
   return (
-    <div className="relative h-dvh w-screen overflow-hidden">
+    <div className="native-map-screen">
       <Map
         key={mapFitKey}
         ref={handleMapRef}
