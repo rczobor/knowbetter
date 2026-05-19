@@ -29,6 +29,7 @@
   --kb-safe-bottom: env(safe-area-inset-bottom, 0px);
   --kb-bottom-ui-gap: calc(var(--kb-safe-bottom) + 1rem);
   --kb-floating-bottom-ui-gap: calc(var(--kb-safe-bottom) + 2rem);
+  --kb-map-control-bottom-gap: calc(var(--kb-safe-bottom) + 0.75rem);
   --kb-map-screen-height: calc(100dvh + var(--kb-safe-bottom));
 
   --background: oklch(1 0 0);
@@ -388,7 +389,7 @@ a {
 
 .native-map-screen .mapboxgl-ctrl-bottom-left,
 .native-map-screen .mapboxgl-ctrl-bottom-right {
-  bottom: var(--kb-safe-bottom);
+  bottom: var(--kb-map-control-bottom-gap);
 }
 
 @layer base {
