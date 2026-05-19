@@ -1,6 +1,12 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
-import { ChevronRight, LocateFixed, MapPin } from 'lucide-react'
+import {
+  ChevronRight,
+  DoorOpen,
+  LocateFixed,
+  MapPin,
+  SquareParking,
+} from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Map, { Marker } from 'react-map-gl/mapbox'
 import type { MapRef } from 'react-map-gl/mapbox'
@@ -9,7 +15,11 @@ import type { MapRef } from 'react-map-gl/mapbox'
 import { api } from '../../convex/_generated/api'
 import type { Doc } from '../../convex/_generated/dataModel'
 import { Badge } from '../components/ui/badge'
-import { getMarkerViewportTarget, getUserLocationMarker } from './-address-map'
+import {
+  getAddressMarkers,
+  getMarkerViewportTarget,
+  getUserLocationMarker,
+} from './-address-map'
 import type { AddressMarker } from './-address-map'
 import { useUserLocation } from './-user-location'
 
@@ -24,12 +34,22 @@ const INITIAL_VIEW_STATE = {
   zoom: 14,
 }
 
+type HomeAddress = Doc<'address'>
+
+type HomeAddressMarker = AddressMarker & {
+  addressId: string
+}
+
 function Home() {
   const mapRef = useRef<MapRef | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const addresses = useQuery(api.address.listAddresses, {})
   const userLocationState = useUserLocation()
   const userLocation = userLocationState.location
+  const addressMarkers = useMemo(
+    () => getHomeAddressMarkers(addresses),
+    [addresses],
+  )
   const userLocationMarker = useMemo(
     () => getUserLocationMarker(userLocation),
     [userLocation],
@@ -37,9 +57,10 @@ function Home() {
 
   useEffect(() => {
     const map = mapRef.current
-    const viewportTarget = getMarkerViewportTarget(
-      userLocationMarker ? [userLocationMarker] : [],
-    )
+    const viewportTarget = getMarkerViewportTarget([
+      ...addressMarkers,
+      ...(userLocationMarker ? [userLocationMarker] : []),
+    ])
 
     if (!mapLoaded || !map || !viewportTarget) {
       return
@@ -59,7 +80,7 @@ function Home() {
       zoom: viewportTarget.zoom,
       duration: 600,
     })
-  }, [mapLoaded, userLocationMarker])
+  }, [addressMarkers, mapLoaded, userLocationMarker])
 
   return (
     <div className="native-map-screen">
@@ -74,13 +95,17 @@ function Home() {
         {userLocationMarker ? (
           <UserLocationMarker marker={userLocationMarker} />
         ) : null}
+        {addressMarkers.map((marker) => (
+          <HomeAddressPointMarker
+            key={`${marker.addressId}-${marker.id}-${marker.longitude}-${marker.latitude}`}
+            marker={marker}
+          />
+        ))}
       </Map>
       <AddressListPanel addresses={addresses} />
     </div>
   )
 }
-
-type HomeAddress = Doc<'address'>
 
 function AddressListPanel({
   addresses,
@@ -143,6 +168,31 @@ function AddressListPanel({
   )
 }
 
+function HomeAddressPointMarker({ marker }: { marker: HomeAddressMarker }) {
+  return (
+    <Marker
+      longitude={marker.longitude}
+      latitude={marker.latitude}
+      anchor="bottom"
+    >
+      <div
+        className={
+          marker.id === 'parking'
+            ? 'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-white shadow-lg shadow-black/25'
+            : 'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-orange-500 text-white shadow-lg shadow-black/25'
+        }
+        aria-label={`${marker.addressId} ${marker.label}`}
+      >
+        {marker.id === 'parking' ? (
+          <SquareParking className="h-5 w-5" aria-hidden="true" />
+        ) : (
+          <DoorOpen className="h-5 w-5" aria-hidden="true" />
+        )}
+      </div>
+    </Marker>
+  )
+}
+
 function UserLocationMarker({ marker }: { marker: AddressMarker }) {
   return (
     <Marker
@@ -157,5 +207,18 @@ function UserLocationMarker({ marker }: { marker: AddressMarker }) {
         <LocateFixed className="h-4 w-4" aria-hidden="true" />
       </div>
     </Marker>
+  )
+}
+
+function getHomeAddressMarkers(
+  addresses: Array<HomeAddress> | undefined,
+): Array<HomeAddressMarker> {
+  return (
+    addresses?.flatMap((address) =>
+      getAddressMarkers(address).map((marker) => ({
+        ...marker,
+        addressId: address.addressId,
+      })),
+    ) ?? []
   )
 }

@@ -60,6 +60,20 @@ describe('Home route map layout', () => {
     )
   })
 
+  it('renders all address parking and entrance points on the home map', () => {
+    const source = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
+
+    expect(source).toContain('getAddressMarkers(address)')
+    expect(source).toContain('const addressMarkers = useMemo')
+    expect(source).toContain('<HomeAddressPointMarker')
+    expect(source).toContain('<SquareParking className="h-5 w-5"')
+    expect(source).toContain('<DoorOpen className="h-5 w-5"')
+    expect(source).toContain('...addressMarkers')
+    expect(source).toContain(
+      '...(userLocationMarker ? [userLocationMarker] : [])',
+    )
+  })
+
   it('lists available Convex addresses and links them to address routes', () => {
     const source = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
     const convexSource = readFileSync(
