@@ -28,6 +28,7 @@
   --hero-b: rgba(47, 106, 74, 0.2);
   --kb-safe-bottom: env(safe-area-inset-bottom, 0px);
   --kb-bottom-ui-gap: calc(var(--kb-safe-bottom) + 1rem);
+  --kb-floating-bottom-ui-gap: calc(var(--kb-safe-bottom) + 2rem);
   --kb-map-screen-height: calc(100dvh + var(--kb-safe-bottom));
 
   --background: oklch(1 0 0);
@@ -374,7 +375,7 @@ a {
 }
 
 .safe-bottom-panel {
-  bottom: var(--kb-bottom-ui-gap);
+  bottom: var(--kb-floating-bottom-ui-gap);
 }
 
 .native-map-screen {

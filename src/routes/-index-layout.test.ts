@@ -37,6 +37,9 @@ describe('Home route map layout', () => {
       '--kb-bottom-ui-gap: calc(var(--kb-safe-bottom) + 1rem)',
     )
     expect(styles).toContain(
+      '--kb-floating-bottom-ui-gap: calc(var(--kb-safe-bottom) + 2rem)',
+    )
+    expect(styles).toContain(
       '--kb-map-screen-height: calc(100dvh + var(--kb-safe-bottom))',
     )
     expect(styles).toContain('position: relative')
@@ -44,6 +47,7 @@ describe('Home route map layout', () => {
     expect(styles).not.toContain('height: 100vh')
     expect(styles).not.toContain('min-height: 100lvh')
     expect(styles).not.toContain('body:has(.native-map-screen)')
+    expect(styles).toContain('bottom: var(--kb-floating-bottom-ui-gap)')
     expect(homeSource).toContain('className="native-map-screen"')
     expect(addressSource).toContain('className="native-map-screen"')
     expect(eventReviewSource).toContain('className="native-map-screen"')
