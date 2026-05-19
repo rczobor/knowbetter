@@ -392,6 +392,14 @@ a {
   bottom: var(--kb-map-control-bottom-gap);
 }
 
+.home-map-screen .mapboxgl-ctrl-bottom-left,
+.home-map-screen .mapboxgl-ctrl-bottom-right {
+  bottom: calc(
+    var(--kb-floating-bottom-ui-gap) + var(--kb-floating-panel-height, 0px) +
+      0.5rem
+  );
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

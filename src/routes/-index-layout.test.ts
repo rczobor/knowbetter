@@ -5,7 +5,7 @@ describe('Home route map layout', () => {
   it('uses viewport-based sizing instead of fixed map pixels', () => {
     const source = readFileSync(new URL('./index.tsx', import.meta.url), 'utf8')
 
-    expect(source).toContain('className="native-map-screen"')
+    expect(source).toContain('className="native-map-screen home-map-screen"')
     expect(source).toContain("height: '100%'")
     expect(source).toContain("width: '100%'")
     expect(source).not.toContain('style={{ width: 1000, height: 700 }}')
@@ -54,7 +54,16 @@ describe('Home route map layout', () => {
     expect(styles).toContain('.native-map-screen .mapboxgl-ctrl-bottom-left')
     expect(styles).toContain('.native-map-screen .mapboxgl-ctrl-bottom-right')
     expect(styles).toContain('bottom: var(--kb-map-control-bottom-gap)')
-    expect(homeSource).toContain('className="native-map-screen"')
+    expect(styles).toContain('.home-map-screen .mapboxgl-ctrl-bottom-left')
+    expect(styles).toContain('.home-map-screen .mapboxgl-ctrl-bottom-right')
+    expect(styles).toContain('var(--kb-floating-panel-height, 0px)')
+    expect(homeSource).toContain(
+      'className="native-map-screen home-map-screen"',
+    )
+    expect(homeSource).toContain('home-map-screen')
+    expect(homeSource).toContain('--kb-floating-panel-height')
+    expect(homeSource).toContain('onHeightChange={setAddressPanelHeight}')
+    expect(homeSource).toContain('ResizeObserver')
     expect(addressSource).toContain('className="native-map-screen"')
     expect(eventReviewSource).toContain('className="native-map-screen"')
     expect(homeSource).toContain('safe-bottom-panel')
@@ -97,7 +106,9 @@ describe('Home route map layout', () => {
     expect(convexSource).toContain('export const listAddresses = query')
     expect(convexSource).toContain("ctx.db.query('address').collect()")
     expect(source).toContain('useQuery(api.address.listAddresses, {})')
-    expect(source).toContain('<AddressListPanel addresses={addresses} />')
+    expect(source).toContain('<AddressListPanel')
+    expect(source).toContain('addresses={addresses}')
+    expect(source).toContain('onHeightChange={setAddressPanelHeight}')
     expect(source).toContain('to="/address/$addressId"')
     expect(source).toContain('params={{ addressId: address.addressId }}')
     expect(source).toContain('Available addresses')

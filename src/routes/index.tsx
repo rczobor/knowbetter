@@ -8,6 +8,7 @@ import {
   SquareParking,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import Map, { Marker } from 'react-map-gl/mapbox'
 import type { MapRef } from 'react-map-gl/mapbox'
 // If using with mapbox-gl v1:
@@ -43,6 +44,7 @@ type HomeAddressMarker = AddressMarker & {
 function Home() {
   const mapRef = useRef<MapRef | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
+  const [addressPanelHeight, setAddressPanelHeight] = useState(0)
   const addresses = useQuery(api.address.listAddresses, {})
   const userLocationState = useUserLocation()
   const userLocation = userLocationState.location
@@ -83,7 +85,14 @@ function Home() {
   }, [addressMarkers, mapLoaded, userLocationMarker])
 
   return (
-    <div className="native-map-screen">
+    <div
+      className="native-map-screen home-map-screen"
+      style={
+        {
+          '--kb-floating-panel-height': `${addressPanelHeight}px`,
+        } as CSSProperties
+      }
+    >
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
@@ -102,18 +111,48 @@ function Home() {
           />
         ))}
       </Map>
-      <AddressListPanel addresses={addresses} />
+      <AddressListPanel
+        addresses={addresses}
+        onHeightChange={setAddressPanelHeight}
+      />
     </div>
   )
 }
 
 function AddressListPanel({
   addresses,
+  onHeightChange,
 }: {
   addresses: Array<HomeAddress> | undefined
+  onHeightChange: (height: number) => void
 }) {
+  const [panelElement, setPanelElement] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!panelElement) {
+      onHeightChange(0)
+      return
+    }
+
+    const updateHeight = () => {
+      onHeightChange(Math.ceil(panelElement.getBoundingClientRect().height))
+    }
+
+    updateHeight()
+
+    if (typeof ResizeObserver === 'undefined') {
+      return
+    }
+
+    const resizeObserver = new ResizeObserver(updateHeight)
+    resizeObserver.observe(panelElement)
+
+    return () => resizeObserver.disconnect()
+  }, [onHeightChange, panelElement])
+
   return (
     <section
+      ref={setPanelElement}
       className="safe-bottom-panel absolute inset-x-3 z-30 max-h-[min(20rem,45dvh)] overflow-hidden rounded-lg border border-white/40 bg-white/95 shadow-xl shadow-black/15 backdrop-blur-md"
       aria-label="Available addresses"
     >
