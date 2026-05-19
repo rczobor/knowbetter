@@ -12,6 +12,8 @@ export type EventPointKind = 'eventParking' | 'eventEntrance'
 
 export type ActiveEventPointKind = 'activeParking' | 'activeEntrance'
 
+export type WalkingEntranceHintKind = 'addressEntrance' | 'eventEntrance'
+
 export type EventPointFeatureProperties = {
   eventId: string
   kind: EventPointKind | ActiveEventPointKind
@@ -54,6 +56,25 @@ export type ActiveEventWalkingTraceFeatureCollection = {
 export type ActiveEventFeatureCollections = {
   points: EventPointFeatureCollection
   line: ActiveEventWalkingTraceFeatureCollection
+}
+
+export type WalkingEntranceHintFeature = {
+  type: 'Feature'
+  geometry: {
+    type: 'Point'
+    coordinates: [number, number]
+  }
+  properties: {
+    kind: WalkingEntranceHintKind
+    label: string
+    eventId?: string
+    date?: string
+  }
+}
+
+export type WalkingEntranceHintFeatureCollection = {
+  type: 'FeatureCollection'
+  features: Array<WalkingEntranceHintFeature>
 }
 
 export type EventWithPoints =
@@ -285,6 +306,14 @@ function activeEventPointLabel(kind: ActiveEventPointKind) {
   return 'Entrance point'
 }
 
+function walkingEntranceHintLabel(kind: WalkingEntranceHintKind) {
+  if (kind === 'addressEntrance') {
+    return 'Address entrance point'
+  }
+
+  return 'Historical entrance point'
+}
+
 function eventPointId(event: EventWithPoints, eventIndex: number) {
   if (event?._id) {
     return event._id
@@ -347,6 +376,58 @@ function activeEventPointToFeature(
       kind,
       label: activeEventPointLabel(kind),
     },
+  }
+}
+
+function addressEntranceHintToFeature(
+  address: AddressWithPoints,
+): WalkingEntranceHintFeature | null {
+  const coordinates = getValidPointCoordinates(address?.entrancePoint)
+
+  if (!address || !coordinates) {
+    return null
+  }
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Point',
+      coordinates,
+    },
+    properties: {
+      kind: 'addressEntrance',
+      label: walkingEntranceHintLabel('addressEntrance'),
+    },
+  }
+}
+
+function eventEntranceHintToFeature(
+  event: EventWithPoints,
+  eventIndex: number,
+): WalkingEntranceHintFeature | null {
+  const coordinates = getValidPointCoordinates(event?.entrancePoint)
+
+  if (!event || !coordinates) {
+    return null
+  }
+
+  const properties: WalkingEntranceHintFeature['properties'] = {
+    kind: 'eventEntrance',
+    label: walkingEntranceHintLabel('eventEntrance'),
+    eventId: eventPointId(event, eventIndex),
+  }
+
+  if (typeof event.date === 'string') {
+    properties.date = event.date
+  }
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Point',
+      coordinates,
+    },
+    properties,
   }
 }
 
@@ -472,6 +553,21 @@ export function getActiveEventFeatureCollections(
   }
 }
 
+export function getWalkingEntranceHintFeatureCollection(
+  address: AddressWithPoints,
+  events: Array<EventWithPoints> | null | undefined,
+): WalkingEntranceHintFeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: [
+      addressEntranceHintToFeature(address),
+      ...(events?.map(eventEntranceHintToFeature) ?? []),
+    ].filter(
+      (feature): feature is WalkingEntranceHintFeature => feature !== null,
+    ),
+  }
+}
+
 export function getEventPointMarkers(
   events: Array<EventWithPoints> | null | undefined,
 ): Array<MapViewportPoint> {
@@ -508,6 +604,22 @@ export function getActiveEventViewportMarkers(
       }
 
       const [longitude, latitude] = coordinate
+
+      return {
+        longitude,
+        latitude,
+      }
+    },
+  )
+}
+
+export function getWalkingEntranceHintViewportMarkers(
+  address: AddressWithPoints,
+  events: Array<EventWithPoints> | null | undefined,
+): Array<MapViewportPoint> {
+  return getWalkingEntranceHintFeatureCollection(address, events).features.map(
+    (feature) => {
+      const [longitude, latitude] = feature.geometry.coordinates
 
       return {
         longitude,

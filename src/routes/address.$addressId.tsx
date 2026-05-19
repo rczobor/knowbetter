@@ -28,6 +28,8 @@ import {
   getPointFromMapCenter,
   getPointFromViewportPoint,
   getUserLocationMarker,
+  getWalkingEntranceHintFeatureCollection,
+  getWalkingEntranceHintViewportMarkers,
   shouldAppendWalkingTracePoint,
 } from './-address-map'
 import type {
@@ -35,6 +37,7 @@ import type {
   AddressMultiPoint,
   AddressPoint,
   EventPointFeatureCollection,
+  WalkingEntranceHintFeatureCollection,
 } from './-address-map'
 import { ActiveEventLayers } from './-active-event-layers'
 import { useUserLocation } from './-user-location'
@@ -71,6 +74,30 @@ const EVENT_PARKING_POINTS_LAYER: LayerProps = {
   paint: {
     'circle-color': '#2563eb',
     'circle-radius': 6,
+    'circle-stroke-color': '#ffffff',
+    'circle-stroke-width': 2,
+  },
+}
+
+const WALKING_ADDRESS_ENTRANCE_POINT_LAYER: LayerProps = {
+  id: 'walking-address-entrance-point',
+  type: 'circle',
+  filter: ['==', ['get', 'kind'], 'addressEntrance'],
+  paint: {
+    'circle-color': '#f97316',
+    'circle-radius': 9,
+    'circle-stroke-color': '#ffffff',
+    'circle-stroke-width': 2,
+  },
+}
+
+const WALKING_EVENT_ENTRANCE_POINTS_LAYER: LayerProps = {
+  id: 'walking-event-entrance-points',
+  type: 'circle',
+  filter: ['==', ['get', 'kind'], 'eventEntrance'],
+  paint: {
+    'circle-color': '#f97316',
+    'circle-radius': 5,
     'circle-stroke-color': '#ffffff',
     'circle-stroke-width': 2,
   },
@@ -132,6 +159,10 @@ function AddressMap() {
     parkingFlowStep === 'walkingToEntrance' ||
     parkingFlowStep === 'finishedWalking'
   const userLocationMarker = getUserLocationMarker(liveUserLocation)
+  const walkingEntranceHintFeatureCollection =
+    getWalkingEntranceHintFeatureCollection(address, events)
+  const walkingEntranceHintViewportMarkers =
+    getWalkingEntranceHintViewportMarkers(address, events)
   const markers =
     parkingFlowStep === 'walkingToEntrance'
       ? userLocationMarker
@@ -143,6 +174,9 @@ function AddressMap() {
   const viewportMarkers = isWalkingFlow
     ? [
         ...getEventPointMarkers(currentEvent ? [currentEvent] : []),
+        ...(parkingFlowStep === 'walkingToEntrance'
+          ? walkingEntranceHintViewportMarkers
+          : []),
         ...(parkingFlowStep === 'walkingToEntrance' && userLocationMarker
           ? [userLocationMarker]
           : []),
@@ -445,6 +479,13 @@ function AddressMap() {
             activeEventFeatureCollections={activeEventFeatureCollections}
           />
         ) : null}
+        {parkingFlowStep === 'walkingToEntrance' ? (
+          <WalkingEntranceHintLayers
+            walkingEntranceHintFeatureCollection={
+              walkingEntranceHintFeatureCollection
+            }
+          />
+        ) : null}
         {parkingFlowStep === 'adjustParking' ? (
           <EventParkingPointLayer
             eventParkingPointFeatureCollection={
@@ -470,6 +511,23 @@ function AddressMap() {
         canFinishWalking={canFinishWalking}
       />
     </div>
+  )
+}
+
+function WalkingEntranceHintLayers({
+  walkingEntranceHintFeatureCollection,
+}: {
+  walkingEntranceHintFeatureCollection: WalkingEntranceHintFeatureCollection
+}) {
+  return (
+    <Source
+      id="walking-entrance-hints"
+      type="geojson"
+      data={walkingEntranceHintFeatureCollection}
+    >
+      <Layer {...WALKING_EVENT_ENTRANCE_POINTS_LAYER} />
+      <Layer {...WALKING_ADDRESS_ENTRANCE_POINT_LAYER} />
+    </Source>
   )
 }
 

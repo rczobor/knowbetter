@@ -8,6 +8,8 @@ import {
   getEventPointFeatureCollection,
   getEventParkingPointFeatureCollection,
   getEventPointMarkers,
+  getWalkingEntranceHintFeatureCollection,
+  getWalkingEntranceHintViewportMarkers,
   getParkingArrivalViewportMarkers,
   getParkingFlowMarkers,
   getPointFromMapCenter,
@@ -627,6 +629,110 @@ describe('address map helpers', () => {
       {
         longitude: 19.0781,
         latitude: 47.5562,
+      },
+    ])
+  })
+
+  it('builds entrance hint GeoJSON from address and event entrances', () => {
+    const featureCollection = getWalkingEntranceHintFeatureCollection(
+      {
+        entrancePoint: {
+          type: 'Point',
+          coordinates: [19.0781, 47.5562],
+        },
+      },
+      [
+        {
+          _id: 'event-4',
+          date: '2026-05-19',
+          entrancePoint: {
+            type: 'Point',
+            coordinates: [19.0784, 47.5565],
+          },
+        },
+      ],
+    )
+
+    expect(featureCollection).toEqual({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [19.0781, 47.5562],
+          },
+          properties: {
+            kind: 'addressEntrance',
+            label: 'Address entrance point',
+          },
+        },
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [19.0784, 47.5565],
+          },
+          properties: {
+            kind: 'eventEntrance',
+            label: 'Historical entrance point',
+            eventId: 'event-4',
+            date: '2026-05-19',
+          },
+        },
+      ],
+    })
+  })
+
+  it('ignores malformed entrance hint coordinates', () => {
+    const featureCollection = getWalkingEntranceHintFeatureCollection(
+      {
+        entrancePoint: {
+          type: 'Point',
+          coordinates: [19.0781],
+        },
+      },
+      [
+        {
+          _id: 'event-5',
+          entrancePoint: {
+            type: 'Point',
+            coordinates: [Number.NaN, 47.5565],
+          },
+        },
+      ],
+    )
+
+    expect(featureCollection.features).toEqual([])
+  })
+
+  it('builds viewport markers from walking entrance hints', () => {
+    const markers = getWalkingEntranceHintViewportMarkers(
+      {
+        entrancePoint: {
+          type: 'Point',
+          coordinates: [19.0781, 47.5562],
+        },
+      },
+      [
+        {
+          _id: 'event-6',
+          entrancePoint: {
+            type: 'Point',
+            coordinates: [19.0784, 47.5565],
+          },
+        },
+      ],
+    )
+
+    expect(markers).toEqual([
+      {
+        longitude: 19.0781,
+        latitude: 47.5562,
+      },
+      {
+        longitude: 19.0784,
+        latitude: 47.5565,
       },
     ])
   })

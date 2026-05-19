@@ -193,6 +193,26 @@ describe('Address map missing address toast', () => {
     expect(source).toContain('shouldAppendWalkingTracePoint')
   })
 
+  it('shows address and event entrance hints while walking to the entrance', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('getWalkingEntranceHintFeatureCollection')
+    expect(source).toContain('getWalkingEntranceHintViewportMarkers')
+    expect(source).toContain(
+      'getWalkingEntranceHintFeatureCollection(address, events)',
+    )
+    expect(source).toContain(
+      'getWalkingEntranceHintViewportMarkers(address, events)',
+    )
+    expect(source).toContain("parkingFlowStep === 'walkingToEntrance' ? (")
+    expect(source).toContain('<WalkingEntranceHintLayers')
+    expect(source).toContain('walking-address-entrance-point')
+    expect(source).toContain('walking-event-entrance-points')
+  })
+
   it('finishes walking with one backend mutation and renders the completed event', () => {
     const source = readFileSync(
       new URL('./address.$addressId.tsx', import.meta.url),
