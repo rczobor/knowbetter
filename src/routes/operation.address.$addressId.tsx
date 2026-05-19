@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import type { MapRef } from 'react-map-gl/mapbox'
 import Map, { Layer, Source } from 'react-map-gl/mapbox'
 import 'mapbox-gl/dist/mapbox-gl.css'
@@ -26,11 +26,12 @@ import MapImages from '@/components/map-image'
 import RouteArrowHeadLayer from '@/components/ui/route-arrow-head-layer'
 import bbox from '@turf/bbox'
 
-export const Route = createFileRoute('/address')({ component: Address })
+export const Route = createFileRoute('/operation/address/$addressId')({ component: Address })
+
+const routeApi = getRouteApi('/operation/address/$addressId')
 
 const MAPBOX_ACCESS_TOKEN = (import.meta as any).env.VITE_MAPBOX_ACCESS_TOKEN
 const CENTER = { lng: 19.07744443713043, lat: 47.55396193398739 }
-const MOCK_ADDRESS_ID = 'my_house'
 
 function LayersTrigger() {
   const { toggleSidebar } = useSidebar()
@@ -118,19 +119,18 @@ function LayersSidebar({
 }
 
 function Address() {
+  const { addressId } = routeApi.useParams()
   const [showWalkingTraces, setShowWalkingTraces] = useState(true)
   const [showParking, setShowParking] = useState(true)
   const [showEntrance, setShowEntrance] = useState(true)
   const [hasMoved, setHasMoved] = useState(false)
 
   const mapRef = useRef<MapRef | null>(null)
-  const address = useQuery(api.address.getAddressByAddressId, {
-    addressId: MOCK_ADDRESS_ID,
-  })
+  const address = useQuery(api.address.getAddressByAddressId, { addressId })
   const addressMarkers = getAddressMarkers(address).filter(
     (m) => (m.id === 'parking' ? showParking : showEntrance),
   )
-  const { geojson, layer, endpointsGeojson, endpointsLayer } = useWalkingTracesLayer(showWalkingTraces)
+  const { geojson, layer, endpointsGeojson, endpointsLayer } = useWalkingTracesLayer(addressId, showWalkingTraces)
 
   useEffect(() => {
     const map = mapRef.current

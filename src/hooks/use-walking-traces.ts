@@ -3,15 +3,11 @@ import { useQuery } from 'convex/react'
 import { api } from '@/../../convex/_generated/api'
 import type { LayerProps } from 'react-map-gl/mapbox-legacy'
 
-const MOCK_ADDRESS_ID = 'my_house'
-
 const randomizeEventColor = (i: number) =>
   `hsl(${(i * 137.508) % 360}, 70%, 55%)`
 
-export default function useWalkingTracesLayer(showWalkingTraces: boolean) {
-  const events = useQuery(api.address.getEventsByAddressId, {
-    addressId: MOCK_ADDRESS_ID,
-  })
+export default function useWalkingTracesLayer(addressId: string, showWalkingTraces: boolean) {
+  const events = useQuery(api.address.getEventsByAddressId, { addressId })
 
   const geojson = useMemo(
     () => ({
