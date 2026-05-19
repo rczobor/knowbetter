@@ -164,14 +164,12 @@ function AddressMap() {
   const walkingEntranceHintViewportMarkers =
     getWalkingEntranceHintViewportMarkers(address, events)
   const activeEventMarkers = getActiveEventMarkers(currentEvent)
-  const walkingEntranceHintMarkers = getWalkingEntranceHintMarkers(
-    walkingEntranceHintFeatureCollection,
-  )
+  const addressPointMarkers = getAddressPointMarkers(address)
   const markers =
     parkingFlowStep === 'walkingToEntrance'
       ? [
           ...activeEventMarkers,
-          ...walkingEntranceHintMarkers,
+          ...addressPointMarkers,
           ...(userLocationMarker ? [userLocationMarker] : []),
         ]
       : parkingFlowStep === 'finishedWalking'
@@ -778,28 +776,20 @@ function getActiveEventMarkers(
   ].filter((marker): marker is AddressMarker => marker !== null)
 }
 
-function getWalkingEntranceHintMarkers({
-  features,
-}: WalkingEntranceHintFeatureCollection): Array<AddressMarker> {
-  return features
-    .map((feature): AddressMarker | null => {
-      const [longitude, latitude] = feature.geometry.coordinates
+function getAddressPointMarkers(
+  address: {
+    parkingPoint?: AddressPoint
+    entrancePoint?: AddressPoint
+  } | null,
+): Array<AddressMarker> {
+  if (!address) {
+    return []
+  }
 
-      if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
-        return null
-      }
-
-      return {
-        id: 'entrance',
-        label:
-          feature.properties.kind === 'addressEntrance'
-            ? 'Address entrance'
-            : 'Previous entrance',
-        longitude,
-        latitude,
-      }
-    })
-    .filter((marker): marker is AddressMarker => marker !== null)
+  return [
+    getMarkerFromPoint('parking', 'Parking point', address.parkingPoint),
+    getMarkerFromPoint('entrance', 'Entrance point', address.entrancePoint),
+  ].filter((marker): marker is AddressMarker => marker !== null)
 }
 
 function getMarkerFromPoint(
