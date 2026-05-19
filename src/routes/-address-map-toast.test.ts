@@ -21,6 +21,8 @@ describe('Address map missing address toast', () => {
     )
 
     expect(source).toContain('richColors')
+    expect(source).toContain("position = 'top-center'")
+    expect(source).toContain('duration = 4000')
     expect(source).toContain('--error-bg')
     expect(source).toContain('--error-text')
     expect(source).toContain("description: 'text-current/85'")
@@ -213,6 +215,12 @@ describe('Address map missing address toast', () => {
     expect(source).toContain('navigator.geolocation.clearWatch')
     expect(source).toContain('api.address.updateEventWalkingTraces')
     expect(source).toContain('shouldAppendWalkingTracePoint')
+    expect(source).toContain(
+      "const WALKING_LOCATION_TOAST_ID = 'walking-location-unavailable'",
+    )
+    expect(source).toContain('id: WALKING_LOCATION_TOAST_ID')
+    expect(source).toContain('duration: WALKING_LOCATION_TOAST_DURATION_MS')
+    expect(source).toContain('toast.dismiss(WALKING_LOCATION_TOAST_ID)')
   })
 
   it('shows address and event entrance hints while walking to the entrance', () => {

@@ -57,6 +57,8 @@ const addressRoute = getRouteApi('/address/$addressId')
 
 const MAPBOX_ACCESS_TOKEN = (import.meta as any).env.VITE_MAPBOX_ACCESS_TOKEN
 const MAP_STYLE = 'mapbox://styles/robertczobor/clnu2vyeo00n801qw3eyz5fm3'
+const WALKING_LOCATION_TOAST_ID = 'walking-location-unavailable'
+const WALKING_LOCATION_TOAST_DURATION_MS = 4000
 const INITIAL_VIEW_STATE = {
   longitude: 19.076422156938513,
   latitude: 47.55561160380166,
@@ -312,6 +314,7 @@ function AddressMap() {
         }
 
         setLatestWalkingLocation(nextLocation)
+        toast.dismiss(WALKING_LOCATION_TOAST_ID)
 
         const appendTime = Date.now()
         const shouldAppend = shouldAppendWalkingTracePoint({
@@ -354,7 +357,9 @@ function AddressMap() {
       (error) => {
         if (active) {
           toast.error('Walking location unavailable', {
+            id: WALKING_LOCATION_TOAST_ID,
             description: error.message,
+            duration: WALKING_LOCATION_TOAST_DURATION_MS,
           })
         }
       },
@@ -366,6 +371,7 @@ function AddressMap() {
     return () => {
       active = false
       navigator.geolocation.clearWatch(watchId)
+      toast.dismiss(WALKING_LOCATION_TOAST_ID)
       isAppendingWalkingTraceRef.current = false
     }
   }, [currentEvent?._id, parkingFlowStep, updateEventWalkingTraces])
