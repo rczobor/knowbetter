@@ -496,6 +496,7 @@ function AddressMap() {
         {isWalkingFlow ? (
           <ActiveEventLayers
             activeEventFeatureCollections={activeEventFeatureCollections}
+            showPointLayers={false}
           />
         ) : null}
         {parkingFlowStep === 'walkingToEntrance' ? (

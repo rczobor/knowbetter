@@ -70,6 +70,7 @@ describe('Address map missing address toast', () => {
     expect(source).toContain('getActiveEventMarkers(currentEvent)')
     expect(source).toContain('getAddressPointMarkers(address)')
     expect(source).not.toContain('getWalkingEntranceHintMarkers(')
+    expect(source).toContain('showPointLayers={false}')
     expect(source).toContain('<SquareParking className="h-5 w-5"')
     expect(source).toContain('<DoorOpen className="h-5 w-5"')
     expect(source).toContain('<LocateFixed className="h-4 w-4"')

@@ -155,7 +155,11 @@ function Address() {
 
       <Source id="walking-traces" type="geojson" data={geojson}>
         <Layer {...layer} />
-        <RouteArrowHeadLayer id={layer.id} color={layer.paint['line-color']} />
+        <RouteArrowHeadLayer
+          id={layer.id}
+          color={layer.paint['line-color']}
+          hidden={!showWalkingTraces}
+        />
       </Source>
       <Source
         id="walking-traces-endpoints"

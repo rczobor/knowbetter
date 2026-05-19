@@ -40,8 +40,10 @@ const ACTIVE_EVENT_ENTRANCE_DESTINATION_LAYER: LayerProps = {
 
 export function ActiveEventLayers({
   activeEventFeatureCollections,
+  showPointLayers = true,
 }: {
   activeEventFeatureCollections: ActiveEventFeatureCollections
+  showPointLayers?: boolean
 }) {
   return (
     <>
@@ -57,8 +59,12 @@ export function ActiveEventLayers({
         type="geojson"
         data={activeEventFeatureCollections.points}
       >
-        <Layer {...ACTIVE_EVENT_PARKING_ORIGIN_LAYER} />
-        <Layer {...ACTIVE_EVENT_ENTRANCE_DESTINATION_LAYER} />
+        {showPointLayers ? (
+          <>
+            <Layer {...ACTIVE_EVENT_PARKING_ORIGIN_LAYER} />
+            <Layer {...ACTIVE_EVENT_ENTRANCE_DESTINATION_LAYER} />
+          </>
+        ) : null}
       </Source>
     </>
   )

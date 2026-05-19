@@ -51,6 +51,7 @@ describe('event review route', () => {
     expect(layerSource).toContain('active-event-walking-line')
     expect(layerSource).toContain('active-event-parking-origin')
     expect(layerSource).toContain('active-event-entrance-destination')
+    expect(layerSource).toContain('showPointLayers = true')
     expect(routeSource).not.toContain('Drawer')
   })
 

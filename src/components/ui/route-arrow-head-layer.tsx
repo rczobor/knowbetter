@@ -34,6 +34,7 @@ const RouteArrowHeadLayer = ({ id, color, source, hidden = false }: Props) => {
         'icon-allow-overlap': true,
         'icon-ignore-placement': true,
         'icon-image': 'arrowheads',
+        'icon-rotate': 180,
         'icon-size': [
           'interpolate',
           ['linear'],
