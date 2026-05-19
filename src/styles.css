@@ -26,6 +26,8 @@
   --link-bg-hover: rgba(255, 255, 255, 0.9);
   --hero-a: rgba(79, 184, 178, 0.36);
   --hero-b: rgba(47, 106, 74, 0.2);
+  --kb-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --kb-bottom-ui-gap: calc(var(--kb-safe-bottom) + 1rem);
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
@@ -363,35 +365,19 @@ a {
 }
 
 .safe-area-drawer-footer {
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  padding-bottom: var(--kb-bottom-ui-gap);
+}
+
+.safe-bottom-panel {
+  bottom: var(--kb-bottom-ui-gap);
 }
 
 .native-map-screen {
-  position: fixed;
-  inset: 0;
+  position: relative;
   width: 100vw;
-  height: 100vh;
-  min-height: 100lvh;
+  height: 100dvh;
   overflow: hidden;
   background: #d9e4df;
-}
-
-.native-map-screen > .mapboxgl-map,
-.native-map-screen .mapboxgl-canvas-container,
-.native-map-screen .mapboxgl-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100% !important;
-  height: 100% !important;
-}
-
-body:has(.native-map-screen) {
-  background: #d9e4df;
-}
-
-body:has(.native-map-screen)::before,
-body:has(.native-map-screen)::after {
-  content: none;
 }
 
 @layer base {

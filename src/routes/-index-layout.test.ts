@@ -30,15 +30,21 @@ describe('Home route map layout', () => {
     )
 
     expect(styles).toContain('.native-map-screen')
-    expect(styles).toContain('position: fixed')
-    expect(styles).toContain('inset: 0')
-    expect(styles).toContain('height: 100vh')
-    expect(styles).toContain('min-height: 100lvh')
-    expect(styles).toContain('.native-map-screen .mapboxgl-canvas')
-    expect(styles).toContain('body:has(.native-map-screen)::before')
+    expect(styles).toContain(
+      '--kb-safe-bottom: env(safe-area-inset-bottom, 0px)',
+    )
+    expect(styles).toContain(
+      '--kb-bottom-ui-gap: calc(var(--kb-safe-bottom) + 1rem)',
+    )
+    expect(styles).toContain('position: relative')
+    expect(styles).toContain('height: 100dvh')
+    expect(styles).not.toContain('height: 100vh')
+    expect(styles).not.toContain('min-height: 100lvh')
+    expect(styles).not.toContain('body:has(.native-map-screen)')
     expect(homeSource).toContain('className="native-map-screen"')
     expect(addressSource).toContain('className="native-map-screen"')
     expect(eventReviewSource).toContain('className="native-map-screen"')
+    expect(homeSource).toContain('safe-bottom-panel')
   })
 
   it('uses the shared current location hook and renders the user location marker', () => {

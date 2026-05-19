@@ -89,8 +89,7 @@ function AddressListPanel({
 }) {
   return (
     <section
-      className="absolute inset-x-3 z-30 max-h-[min(20rem,45dvh)] overflow-hidden rounded-lg border border-white/40 bg-white/95 shadow-xl shadow-black/15 backdrop-blur-md"
-      style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+      className="safe-bottom-panel absolute inset-x-3 z-30 max-h-[min(20rem,45dvh)] overflow-hidden rounded-lg border border-white/40 bg-white/95 shadow-xl shadow-black/15 backdrop-blur-md"
       aria-label="Available addresses"
     >
       <div className="border-b border-zinc-200/80 px-4 py-3">
