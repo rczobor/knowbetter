@@ -84,7 +84,7 @@ function EventReviewMap() {
   }, [mapAttached, viewportTarget])
 
   return (
-    <div className="relative h-dvh w-screen overflow-hidden">
+    <div className="native-map-screen">
       <Map
         ref={handleMapRef}
         mapboxAccessToken={MAPBOX_ACCESS_TOKEN}

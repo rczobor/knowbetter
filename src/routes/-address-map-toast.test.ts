@@ -21,6 +21,8 @@ describe('Address map missing address toast', () => {
     )
 
     expect(source).toContain('richColors')
+    expect(source).toContain("position = 'top-center'")
+    expect(source).toContain('duration = 4000')
     expect(source).toContain('--error-bg')
     expect(source).toContain('--error-text')
     expect(source).toContain("description: 'text-current/85'")
@@ -49,8 +51,30 @@ describe('Address map missing address toast', () => {
     )
     expect(source).toContain('const userLocation = userLocationState.location')
     expect(source).toContain('getParkingFlowMarkers(address, userLocation)')
+    expect(source).toContain('<AddressMapMarker')
+    expect(source).toContain('marker={marker}')
+  })
+
+  it('uses compact user markers and icon markers for parking and entrance points', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+    const homeSource = readFileSync(
+      new URL('./index.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('flex h-7 w-7')
+    expect(homeSource).toContain('flex h-7 w-7')
+    expect(source).toContain('getActiveEventMarkers(currentEvent)')
+    expect(source).toContain('getAddressPointMarkers(address)')
+    expect(source).not.toContain('getWalkingEntranceHintMarkers(')
+    expect(source).toContain('<SquareParking className="h-5 w-5"')
+    expect(source).toContain('<DoorOpen className="h-5 w-5"')
+    expect(source).toContain('<LocateFixed className="h-4 w-4"')
     expect(source).toContain(
-      '<AddressMapMarker key={marker.id} marker={marker} />',
+      'key={`${marker.id}-${marker.longitude}-${marker.latitude}`}',
     )
   })
 
@@ -191,6 +215,12 @@ describe('Address map missing address toast', () => {
     expect(source).toContain('navigator.geolocation.clearWatch')
     expect(source).toContain('api.address.updateEventWalkingTraces')
     expect(source).toContain('shouldAppendWalkingTracePoint')
+    expect(source).toContain(
+      "const WALKING_LOCATION_TOAST_ID = 'walking-location-unavailable'",
+    )
+    expect(source).toContain('id: WALKING_LOCATION_TOAST_ID')
+    expect(source).toContain('duration: WALKING_LOCATION_TOAST_DURATION_MS')
+    expect(source).toContain('toast.dismiss(WALKING_LOCATION_TOAST_ID)')
   })
 
   it('shows address and event entrance hints while walking to the entrance', () => {
@@ -229,5 +259,20 @@ describe('Address map missing address toast', () => {
     expect(layerSource).toContain('active-event-walking-line')
     expect(layerSource).toContain('active-event-parking-origin')
     expect(layerSource).toContain('active-event-entrance-destination')
+  })
+
+  it('lets the driver finish an address and return to the home route', () => {
+    const source = readFileSync(
+      new URL('./address.$addressId.tsx', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toContain('useNavigate')
+    expect(source).toContain("void navigate({ to: '/' })")
+    expect(source).toContain('onCompleteAddress={handleCompleteAddress}')
+    expect(source).toContain('onCompleteAddress: () => void')
+    expect(source).toContain('Finish address')
+    expect(source).not.toContain('<Button size="lg" disabled>')
+    expect(source).not.toContain('Entrance saved')
   })
 })

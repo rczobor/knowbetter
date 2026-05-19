@@ -1,4 +1,8 @@
-import { createFileRoute, getRouteApi } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  getRouteApi,
+  useNavigate,
+} from '@tanstack/react-router'
 import { useMutation, useQuery } from 'convex/react'
 import { DoorOpen, LocateFixed, SquareParking } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -53,6 +57,8 @@ const addressRoute = getRouteApi('/address/$addressId')
 
 const MAPBOX_ACCESS_TOKEN = (import.meta as any).env.VITE_MAPBOX_ACCESS_TOKEN
 const MAP_STYLE = 'mapbox://styles/robertczobor/clnu2vyeo00n801qw3eyz5fm3'
+const WALKING_LOCATION_TOAST_ID = 'walking-location-unavailable'
+const WALKING_LOCATION_TOAST_DURATION_MS = 4000
 const INITIAL_VIEW_STATE = {
   longitude: 19.076422156938513,
   latitude: 47.55561160380166,
@@ -65,7 +71,7 @@ const MARKER_CLASS_NAMES: Record<AddressMarker['id'], string> = {
   entrance:
     'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-orange-500 text-white shadow-lg shadow-black/25',
   userLocation:
-    'flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-zinc-950 text-white shadow-lg shadow-black/25',
+    'flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-zinc-950 text-white shadow-md shadow-black/25',
 }
 
 const EVENT_PARKING_POINTS_LAYER: LayerProps = {
@@ -120,6 +126,7 @@ type ActiveDeliveryEvent = {
 
 function AddressMap() {
   const { addressId } = addressRoute.useParams()
+  const navigate = useNavigate()
   const mapRef = useRef<MapRef | null>(null)
   const latestTraceAppendRef = useRef<{
     point: UserLocation
@@ -163,13 +170,17 @@ function AddressMap() {
     getWalkingEntranceHintFeatureCollection(address, events)
   const walkingEntranceHintViewportMarkers =
     getWalkingEntranceHintViewportMarkers(address, events)
+  const activeEventMarkers = getActiveEventMarkers(currentEvent)
+  const addressPointMarkers = getAddressPointMarkers(address)
   const markers =
     parkingFlowStep === 'walkingToEntrance'
-      ? userLocationMarker
-        ? [userLocationMarker]
-        : []
+      ? [
+          ...activeEventMarkers,
+          ...addressPointMarkers,
+          ...(userLocationMarker ? [userLocationMarker] : []),
+        ]
       : parkingFlowStep === 'finishedWalking'
-        ? []
+        ? activeEventMarkers
         : getParkingFlowMarkers(address, userLocation)
   const viewportMarkers = isWalkingFlow
     ? [
@@ -303,6 +314,7 @@ function AddressMap() {
         }
 
         setLatestWalkingLocation(nextLocation)
+        toast.dismiss(WALKING_LOCATION_TOAST_ID)
 
         const appendTime = Date.now()
         const shouldAppend = shouldAppendWalkingTracePoint({
@@ -345,7 +357,9 @@ function AddressMap() {
       (error) => {
         if (active) {
           toast.error('Walking location unavailable', {
+            id: WALKING_LOCATION_TOAST_ID,
             description: error.message,
+            duration: WALKING_LOCATION_TOAST_DURATION_MS,
           })
         }
       },
@@ -357,6 +371,7 @@ function AddressMap() {
     return () => {
       active = false
       navigator.geolocation.clearWatch(watchId)
+      toast.dismiss(WALKING_LOCATION_TOAST_ID)
       isAppendingWalkingTraceRef.current = false
     }
   }, [currentEvent?._id, parkingFlowStep, updateEventWalkingTraces])
@@ -464,8 +479,12 @@ function AddressMap() {
     }
   }
 
+  function handleCompleteAddress() {
+    void navigate({ to: '/' })
+  }
+
   return (
-    <div className="relative h-dvh w-screen overflow-hidden">
+    <div className="native-map-screen">
       <Map
         key={mapFitKey}
         ref={handleMapRef}
@@ -494,7 +513,10 @@ function AddressMap() {
           />
         ) : null}
         {markers.map((marker) => (
-          <AddressMapMarker key={marker.id} marker={marker} />
+          <AddressMapMarker
+            key={`${marker.id}-${marker.longitude}-${marker.latitude}`}
+            marker={marker}
+          />
         ))}
       </Map>
       {parkingFlowStep === 'adjustParking' ? <CenterParkingPin /> : null}
@@ -508,6 +530,7 @@ function AddressMap() {
         onAdjustParking={() => setParkingFlowStep('adjustParking')}
         onSaveCorrectedParking={handleSaveCorrectedParking}
         onFinishWalking={handleFinishWalking}
+        onCompleteAddress={handleCompleteAddress}
         canFinishWalking={canFinishWalking}
       />
     </div>
@@ -574,6 +597,7 @@ function ParkingArrivalDrawer({
   onAdjustParking,
   onSaveCorrectedParking,
   onFinishWalking,
+  onCompleteAddress,
   canFinishWalking,
 }: {
   step: ParkingFlowStep
@@ -585,6 +609,7 @@ function ParkingArrivalDrawer({
   onAdjustParking: () => void
   onSaveCorrectedParking: () => void
   onFinishWalking: () => void
+  onCompleteAddress: () => void
   canFinishWalking: boolean
 }) {
   const canArrive = locationStatus === 'available' && !isSaving
@@ -661,8 +686,8 @@ function ParkingArrivalDrawer({
             </Button>
           ) : null}
           {step === 'finishedWalking' ? (
-            <Button size="lg" disabled>
-              Entrance saved
+            <Button size="lg" onClick={onCompleteAddress}>
+              Finish address
             </Button>
           ) : null}
         </DrawerFooter>
@@ -749,5 +774,57 @@ function AddressMapMarkerIcon({ marker }: { marker: AddressMarker }) {
     return <DoorOpen className="h-5 w-5" aria-hidden="true" />
   }
 
-  return <LocateFixed className="h-5 w-5" aria-hidden="true" />
+  return <LocateFixed className="h-4 w-4" aria-hidden="true" />
+}
+
+function getActiveEventMarkers(
+  currentEvent: ActiveDeliveryEvent | null,
+): Array<AddressMarker> {
+  if (!currentEvent) {
+    return []
+  }
+
+  return [
+    getMarkerFromPoint('parking', 'Parking point', currentEvent.parkingPoint),
+    getMarkerFromPoint(
+      'entrance',
+      'Entrance point',
+      currentEvent.entrancePoint,
+    ),
+  ].filter((marker): marker is AddressMarker => marker !== null)
+}
+
+function getAddressPointMarkers(
+  address: {
+    parkingPoint?: AddressPoint
+    entrancePoint?: AddressPoint
+  } | null,
+): Array<AddressMarker> {
+  if (!address) {
+    return []
+  }
+
+  return [
+    getMarkerFromPoint('parking', 'Parking point', address.parkingPoint),
+    getMarkerFromPoint('entrance', 'Entrance point', address.entrancePoint),
+  ].filter((marker): marker is AddressMarker => marker !== null)
+}
+
+function getMarkerFromPoint(
+  id: Extract<AddressMarker['id'], 'parking' | 'entrance'>,
+  label: string,
+  point: AddressPoint | undefined,
+): AddressMarker | null {
+  const [longitude, latitude] = point?.coordinates ?? []
+
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+    return null
+  }
+
+  return {
+    id,
+    label,
+    longitude,
+    latitude,
+  }
 }

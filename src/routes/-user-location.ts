@@ -37,38 +37,50 @@ export function useUserLocation(): UserLocationState {
 
     let active = true
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { longitude, latitude } = position.coords
+    function updateCurrentPosition() {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { longitude, latitude } = position.coords
 
-        if (
-          !active ||
-          !Number.isFinite(longitude) ||
-          !Number.isFinite(latitude)
-        ) {
-          return
-        }
+          if (
+            !active ||
+            !Number.isFinite(longitude) ||
+            !Number.isFinite(latitude)
+          ) {
+            return
+          }
 
-        setUserLocationState({
-          status: 'available',
-          location: { longitude, latitude },
-        })
-      },
-      (error) => {
-        if (!active) {
-          return
-        }
+          setUserLocationState({
+            status: 'available',
+            location: { longitude, latitude },
+          })
+        },
+        (error) => {
+          if (!active) {
+            return
+          }
 
-        setUserLocationState({
-          status: 'error',
-          location: null,
-          errorMessage: error.message,
-        })
-      },
-    )
+          setUserLocationState({
+            status: 'error',
+            location: null,
+            errorMessage: error.message,
+          })
+        },
+      )
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        updateCurrentPosition()
+      }
+    }
+
+    updateCurrentPosition()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       active = false
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [])
 
