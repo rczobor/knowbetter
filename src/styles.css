@@ -28,6 +28,7 @@
   --hero-b: rgba(47, 106, 74, 0.2);
   --kb-safe-bottom: env(safe-area-inset-bottom, 0px);
   --kb-bottom-ui-gap: calc(var(--kb-safe-bottom) + 1rem);
+  --kb-map-screen-height: calc(100dvh + var(--kb-safe-bottom));
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
@@ -165,6 +166,10 @@ body,
   width: 100%;
   height: 100%;
   min-height: 100%;
+}
+
+html {
+  background-color: #d9e4df;
 }
 
 body {
@@ -375,7 +380,7 @@ a {
 .native-map-screen {
   position: relative;
   width: 100vw;
-  height: 100dvh;
+  height: var(--kb-map-screen-height);
   overflow: hidden;
   background: #d9e4df;
 }

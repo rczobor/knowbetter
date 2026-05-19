@@ -36,8 +36,11 @@ describe('Home route map layout', () => {
     expect(styles).toContain(
       '--kb-bottom-ui-gap: calc(var(--kb-safe-bottom) + 1rem)',
     )
+    expect(styles).toContain(
+      '--kb-map-screen-height: calc(100dvh + var(--kb-safe-bottom))',
+    )
     expect(styles).toContain('position: relative')
-    expect(styles).toContain('height: 100dvh')
+    expect(styles).toContain('height: var(--kb-map-screen-height)')
     expect(styles).not.toContain('height: 100vh')
     expect(styles).not.toContain('min-height: 100lvh')
     expect(styles).not.toContain('body:has(.native-map-screen)')
