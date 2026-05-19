@@ -362,6 +362,10 @@ a {
   background: color-mix(in oklab, var(--header-bg) 84%, transparent 16%);
 }
 
+.safe-area-drawer-footer {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
