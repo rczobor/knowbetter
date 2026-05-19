@@ -386,6 +386,11 @@ a {
   background: #d9e4df;
 }
 
+.native-map-screen .mapboxgl-ctrl-bottom-left,
+.native-map-screen .mapboxgl-ctrl-bottom-right {
+  bottom: var(--kb-safe-bottom);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
