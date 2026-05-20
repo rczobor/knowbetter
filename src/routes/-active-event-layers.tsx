@@ -60,10 +60,10 @@ export function ActiveEventLayers({
         data={activeEventFeatureCollections.points}
       >
         {showPointLayers ? (
-          <>
-            <Layer {...ACTIVE_EVENT_PARKING_ORIGIN_LAYER} />
-            <Layer {...ACTIVE_EVENT_ENTRANCE_DESTINATION_LAYER} />
-          </>
+          <Layer {...ACTIVE_EVENT_PARKING_ORIGIN_LAYER} />
+        ) : null}
+        {showPointLayers ? (
+          <Layer {...ACTIVE_EVENT_ENTRANCE_DESTINATION_LAYER} />
         ) : null}
       </Source>
     </>
